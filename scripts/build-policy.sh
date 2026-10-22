@@ -8,10 +8,13 @@
 # Usage: build-policy.sh [workdir] [outfile]
 set -euo pipefail
 
-POLICY_DIR="$HOME/.config/sandbox-exec"
+# POLICY_DIR is overridable so tests can render a REPLICA policy dir instead of
+# the live one (apply-step-*.sh verification needs the patched copy, otherwise it
+# silently verifies the unpatched policy).
+POLICY_DIR="${SANDBOX_POLICY_DIR:-$HOME/.config/sandbox-exec}"
 BASE_POLICY="$POLICY_DIR/agent.sb"
-GRANTS_FILE="$POLICY_DIR/grants.sb"
-TMUX_PROFILE="$HOME/.safehouse-tmux.sb"
+GRANTS_FILE="${SANDBOX_GRANTS:-$POLICY_DIR/grants.sb}"
+TMUX_PROFILE="${SANDBOX_TMUX_PROFILE:-$HOME/.safehouse-tmux.sb}"
 
 workdir="${1:-$PWD}"
 out="${2:-/tmp/pi-effective-policy.sb}"
