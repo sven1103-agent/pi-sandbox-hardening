@@ -379,3 +379,24 @@ isolation:  personal gh token blocked · any gh token blocked
 
 `selftest.sh` DENY suite: all keychain checks `DENIED`/`FAILED` (no LEAK).
 ALLOW suite: 0 BROKEN.
+
+---
+
+## CONFIRMED WORKING (live session)
+
+A real sandboxed pi session was launched via
+`~/.config/sandbox-exec/run-sandboxed.sh` and worked: the agent keychain unlock
+prompt appeared once, and models/providers loaded normally.
+
+Post-session checks (nothing left behind):
+
+| Check | Result |
+|---|---|
+| search list | `[login, agent, System]`, login first ✅ |
+| your shell resolves `litellm` | from **login** keychain ✅ (unaffected) |
+| agent keychain state | unlocked (inherited by the session) ✅ |
+| `/tmp/kc-searchlist*` leftovers | none ✅ |
+
+**Step 3b is done.** The agent now reads only its own keychain; the login and
+System keychains are unreachable from inside the sandbox; your shell is
+unchanged.
