@@ -7,3 +7,4 @@
 probe-output*.txt
 .env
 .env.*
+.pi-selftest-probe

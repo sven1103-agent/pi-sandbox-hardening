@@ -1,31 +1,39 @@
 # Findings — verified current state
 
-Environment: macOS, user `sven1103`, Homebrew `agent-safehouse` 0.10.1,
+Environment: macOS 26.7.1 (Tahoe), user `sven1103`, Homebrew `agent-safehouse` 0.12.0 (upgraded; see P11.1),
 `~/.config/sandbox-exec/` custom policy, pi launched via a zsh alias.
 
 Severity legend: **C**ritical / **H**igh / **M**edium / **L**ow
 
 ---
 
-## F1 — pi was running UNSANDBOXED in the session that produced these findings  [C]
+## F1 — RETRACTED: the "unsandboxed" result was a `WORK_DIR=$HOME` artifact  [was C → info]
 
-**Class:** methodology / real exposure
+**Class:** methodology error (retracted finding)
 
-Evidence:
-- `head -c1 ~/.ssh/id_rsa`, `~/.zshrc`, `~/Library/Keychains/login.keychain-db`
-  all succeeded from pi's bash tool.
-- `sandbox-exec -p '(version 1)(allow default)' -- /bin/echo hi`
-  → `sandbox_apply: Operation not permitted` (3/3 attempts).
-- `/bin/ps` → `Operation not permitted`, while file reads succeeded.
+The original F1 concluded pi was running **unconfined**. That was wrong. The
+sandbox *was* active; the "ALLOWED" reads were caused by the session running
+from the user's home folder, so `WORK_DIR=$HOME` and the wrapper appended
+`(allow file-read* file-write* (subpath "$HOME"))` — the *entire* home dir,
+including `~/.ssh`, `~/.zshrc` and `~/Library/Keychains`.
 
-Interpretation: the outer process is confined (nested sandbox creation refused),
-but pi's bash tool is **reaching host paths** that the policy denies. Therefore
-the effective sandbox was **not** the custom policy. Confirms that alias-based
-sandboxing does not bind the child.
+The original evidence is fully consistent with a **confined but over-granted**
+process, not an unconfined one:
 
-**Consequence:** all "ALLOWED/denied" results from the first pass that ran under
-a `WORK_DIR=$HOME` test policy are unreliable and were re-measured. See F9 for
-the corrected method.
+| Observation | Unconfined reading | Correct reading |
+|---|---|---|
+| nested `sandbox-exec` refused | (ignored) | outer confinement **is** present |
+| `/bin/ps` → Operation not permitted | (ignored) | policy **is** applied |
+| `~/.ssh`, `~/.zshrc`, keychain readable | "no sandbox" | the HOME-wide workdir grant |
+
+**Re-measured** in a later, self-confined session with workdir = a real repo (no
+HOME grant): `read` → `EPERM`; `touch $HOME/.t`, `~/.config/.probe`,
+`/Library/.probe` → denied; `~/.ssh/id_rsa`, `~/.zshrc` → denied; nested
+sandbox → refused. See **F11** for the full re-verification.
+
+**Residual real issue (keep):** the alias is not a boundary — `pi-native` or a
+direct `pi` invocation runs unconfined. That is an *invocation* problem (P1),
+not a policy hole. Do not "fix" it by trusting the alias.
 
 ---
 
@@ -122,9 +130,11 @@ authenticate/sign. At investigation time `ssh-add -l` listed an unlocked RSA key
 
 ## F5 — Additional key path granted  [M]
 
-`agent.sb` grants `(subpath "/Users/sven1103/.agent/ssh")` (line ~851) tied to a
-wizard-generated `git upstream SSH key:
-/Users/sven1103/.agent/ssh/agent-github-key`. Another credential in scope.
+`agent.sb` grants `(subpath "/Users/sven1103/.agent/ssh")` (line ~851).
+**Corrected filename:** the private key there is
+`~/.agent/ssh/github_login_ed25519` (mode `0600`), **not** `agent-github-key`
+(which does not exist). Re-verified live (F11): the key is readable from a
+sandboxed process with a realistic workdir.
 
 ---
 
@@ -213,6 +223,61 @@ the specific re-allow blocks, and F1 shows the whole policy can be bypassed.
 
 ---
 
+## F12 — Ambient git auth is a blue route to the keychain (global gitconfig)  [H]
+
+**New (found while designing Step 2).** `git` reaches the login keychain through
+**your global gitconfig**, independently of `grants.sb`'s `security` grant. This
+matters because a file-token workflow can be defeated by ambient git auth.
+
+`~/.gitconfig` contains a **host-scoped** credential helper:
+
+```
+credential.helper gh
+credential.https://github.com.helper =
+credential.https://github.com.helper = !/opt/homebrew/bin/gh auth git-credential
+```
+
+The host-scoped `!gh auth git-credential` line is what answers for github.com —
+not the bare `credential.helper gh` (note: **`git-credential-gh` does not exist
+on PATH**, so that line is inert).
+
+Measured from **inside the sandbox** (2×2, only variable is human-global vs
+system config):
+
+| human global gitconfig | system gitconfig | `git credential fill` |
+|---|---|---|
+| `~/.gitconfig` (as-is) | `/usr/local/etc/gitconfig` | **LEAK** |
+| `~/.gitconfig` (as-is) | neutralised | **LEAK** |
+| neutralised | `/usr/local/etc/gitconfig` | blocked |
+| agent gitconfig | neutralised | blocked |
+
+The row pattern shows the leaker is the **global** gitconfig (F10), and the
+system `credential.helper=osxkeychain` is **latent, not active**: there is no
+`github.com` internet-password item in the keychain
+(`security find-internet-password -s github.com` → not found), and isolating
+`-c credential.helper=osxkeychain` alone yields no credential.
+
+> **Correction note.** An earlier draft of this finding blamed
+> `/usr/local/etc/gitconfig`'s `osxkeychain` helper. That was wrong — it was
+> inferred from a test where `-c credential.helper=…` *appends* to rather than
+> replaces the inherited helpers, so the human `gh` helper was still answering.
+> The isolated 2×2 above is the valid measurement. The practical conclusion is
+> unchanged, but the mechanism is different and matters for the fix: what must be
+> neutralised is the **user's global gitconfig** (P9), not the system one.
+
+**Two consequences for the plan:**
+
+1. **P9 is now load-bearing, not cosmetic.** Setting `GIT_CONFIG_GLOBAL` to an
+   agent-specific gitconfig (which is Step 2's plan anyway) both removes your
+   identity *and* closes this keychain route. `GIT_CONFIG_SYSTEM=/dev/null` is
+   **not** required for this leak, but is harmless extra isolation.
+2. **A new DENY check was added** to `scripts/selftest.sh`
+   (`git credential fill`), because the previous suite tested only the `security`
+   CLI and would have missed this route entirely — i.e. the suite would have gone
+   green after P2 while a keychain path remained open.
+
+---
+
 ## F10 — Other credential stores checked (negative results)  [L]
 
 - No plaintext tokens found in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`,
@@ -228,11 +293,55 @@ the specific re-allow blocks, and F1 shows the whole policy can be bypassed.
 
 ---
 
+## F11 — Re-verification in a confined session with a real workdir  [info]
+
+A later session ran **inside** the sandbox: pi's own `read` tool returned
+`EPERM` for `~/.config/sandbox-exec/agent.sb`; `touch $HOME/.t`,
+`~/.config/.probe`, `/Library/.probe`, `head -c1 ~/.ssh/id_rsa`, `~/.zshrc` and
+`/bin/ps` were all denied; nested `sandbox-exec` was refused. Workdir was a real
+repo, so **no HOME-wide grant** was in play. This is the clean measurement F9
+intended, and it removes the `$HOME` artifact from the picture.
+
+| Probe | Result |
+|---|---|
+| `security find-generic-password -s gh:github.com -w` | **ALLOWED** (both accounts) |
+| `head -c1 ~/Library/Keychains/login.keychain-db` | **ALLOWED** |
+| keychain dir write (`touch ~/Library/Keychains/.x`) | **ALLOWED** — F2's write grant is real |
+| `~/.config/gh/hosts.yml` | **ALLOWED** |
+| `ssh-add -l` **and signing** (`ssh-keygen -Y sign`) | **ALLOWED** — valid signature produced |
+| socket connect to `$SSH_AUTH_SOCK` | **CONNECT OK** (network-outbound path) |
+| `~/.agent/ssh/github_login_ed25519` | **ALLOWED** |
+| `HF_TOKEN_STRICT` in sandboxed env | **present** |
+| egress `example.com` / `paste.rs` | **200** |
+| `~/.ssh/id_rsa`, `~/.ssh/config` | denied — the deny holds |
+| `~/.ssh/known_hosts` | ALLOWED (intended, for host verification) |
+| `~/.config/sandbox-exec` | denied — refutes F1's "unconfined" |
+
+Corrections and updates this produced:
+
+- **F4 is stronger than stated.** `ssh-add -l` only proves listing; the agent
+  also **signed** arbitrary data. Reachability is via `network-outbound (remote
+  unix-socket …)`, confirmed by opening the socket directly.
+- **F9's "these are denied with a realistic workdir"** describes the *base*
+  `agent.sb` only. The **effective** policy the wrapper actually loads
+  (base + `grants.sb` + `~/.safehouse-tmux.sb`) re-opens keychain and ssh-agent
+  even with a realistic workdir.
+- **`gh` uses the login keyring**, so `~/.config/gh/hosts.yml` holds **no
+  token** (only `git_protocol` and `users`). This inverts the P2 caveat:
+  removing the keychain grant *does* remove the only in-sandbox source of the
+  `gh` token. The token is not safe, however — it is exposed via `grants.sb`, and
+  upstream core `scm-clis.sb` still grants `~/.config/gh` regardless.
+- **safehouse is already v0.12.0**, not v0.10.1 (P11.1 satisfied). The
+  hand-edited `agent.sb`/`grants.sb` fork is still what the wrapper loads, so the
+  upgrade alone changes nothing.
+
+---
+
 ## Risk summary
 
 | ID | Finding | Sev | Primary fix |
 |---|---|---|---|
-| F1 | Sandbox bypassable via alias | C | Sandbox the session, not the call (P1) |
+| F1 | ~~Sandbox bypassable via alias~~ **retracted** — `$HOME` workdir over-grant | info | Use a real workdir; scripts now refuse `$PWD=$HOME` (P0.5/P1.0) |
 | F2 | Keychain re-opened (rw) by grants.sb | C | Delete keychain block (P2) |
 | F3 | Personal GitHub token in keychain | C | Remove from keychain; rotate (P5) |
 | F4 | ssh-agent usage re-opened | H | Delete ssh-agent allows (P3) |
@@ -241,6 +350,7 @@ the specific re-allow blocks, and F1 shows the whole policy can be bypassed.
 | F7 | Full env inheritance | H | `env -i` allowlist (P4) |
 | F8 | Unrestricted egress | H | Optional egress allowlist (P8) |
 | F10 | Global git credential helper | M | Per-repo helper (P9) |
+| F12 | **Global gitconfig** = keychain route via host-scoped `!gh` helper | H | `GIT_CONFIG_GLOBAL` = agent gitconfig (P9) |
 
 ## Upstream status of each finding
 
@@ -257,5 +367,5 @@ See `UPSTREAM_STANCE.md` for sources. Summary of who owns the fix:
 | F7 env inheritance | `--env` warned against; sanitized mode is the default | local deviation (P4) |
 | F8 egress | documented **non-goal** ("preventing exfiltration/C2 is NOT a goal") | your call (P8) |
 | F10 global git helper | out of scope | local (P9) |
-| — version drift | local v0.10.1 vs upstream **v0.12.0** | consider upgrade (P11) |
+| — version drift | local fork authored for v0.10.1; **installed is now v0.12.0** | P11.1 done; P11.2 (use generated policy) still open |
 

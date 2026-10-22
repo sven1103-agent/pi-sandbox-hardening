@@ -51,8 +51,9 @@ Must be rotated (disclosed in plaintext in a prior session log).
 
 ## Q8 — Upstream alignment (new; see `UPSTREAM_STANCE.md`)
 
-- [ ] **Q8.1** Upgrade safehouse v0.10.1 → v0.12.0, then regenerate instead of
-      hand-editing? *(recommended)*
+- [x] **Q8.1** Upgrade safehouse v0.10.1 → v0.12.0, then regenerate instead of
+      hand-editing? — **upgrade done** (installed v0.12.0); the "regenerate
+      instead of hand-editing" half is still open (P11.2).
 - [ ] **Q8.2** Adopt "generate policy + small `--append-profile` final-deny
       overlay" instead of maintaining `agent.sb`/`grants.sb`?
 - [ ] **Q8.3** Do you actually need `--enable=ssh` (ssh-agent) inside the sandbox,

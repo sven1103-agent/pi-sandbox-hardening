@@ -19,6 +19,30 @@ out="${2:-/tmp/pi-effective-policy.sb}"
 [[ -d "$workdir" ]] || { echo "workdir not found: $workdir" >&2; exit 1; }
 workdir="$(cd "$workdir" && pwd -P)"
 
+# Guard against the F1/F11 artifact: a workdir of $HOME (or an ancestor of it)
+# appends `(allow file-read* file-write* (subpath "$HOME"))`, which exposes
+# ~/.ssh, ~/.zshrc and the keychain — producing false "LEAK" results.
+if [[ "$workdir" == "$HOME" ]]; then
+  cat >&2 <<'EOF'
+ERROR: refusing to build a policy with workdir=$HOME.
+
+That appends a whole-home read/write grant, which hides the very paths this
+repo exists to protect (~/.ssh, ~/.zshrc, ~/Library/Keychains) and makes
+probes report false leaks. This was the cause of the retracted F1 finding.
+
+Re-run from a real repository/workdir, e.g.:
+  cd ~/git/<some-repo> && scripts/selftest.sh
+EOF
+  exit 2
+fi
+
+# Fail loudly if we are already inside a sandbox (nested sandbox-exec is refused),
+# so probes are not misread as "denied".
+if ! sandbox-exec -p '(version 1)(allow default)' -- /usr/bin/true >/dev/null 2>&1; then
+  echo "WARNING: nested sandbox-exec is refused — are you already inside a sandbox?" >&2
+  echo "         Run build-policy.sh/selftest.sh from an UNCONFINED terminal (see P0.3)." >&2
+fi
+
 [[ -f "$BASE_POLICY" ]] || { echo "missing base policy: $BASE_POLICY" >&2; exit 1; }
 
 sed "s|__SAFEHOUSE_REPLACE_ME_WITH_WORK_DIR_DEFINE__|(define WORK_DIR \"$workdir\")|g" \

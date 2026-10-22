@@ -5,8 +5,11 @@ https://agent-safehouse.dev/docs/options ,
 https://agent-safehouse.dev/docs/default-assumptions ,
 https://github.com/eugene1g/agent-safehouse (Apache-2.0, 2.1k stars, HEAD 2026-10-21)
 
-Local install: **v0.10.1**. Upstream latest release: **v0.12.0** (2026-09-07).
-→ Version drift is real; re-check before assuming upstream behaviour.
+Local install: **v0.12.0** (upgraded from v0.10.1, which the fork was authored
+against — see P11.1). Upstream latest release: **v0.12.0** (2026-09-07).
+→ Version drift is now resolved; the remaining gap is that the wrapper still
+loads the hand-edited `agent.sb`/`grants.sb` instead of a generated policy,
+so the upgrade alone changed no effective grant (P11.2).
 
 **Bottom line:** upstream does *not* treat keychain exposure as a flaw — it is the
 documented, opt-in purpose of the `keychain` integration. The **ssh-agent** variant
@@ -53,7 +56,7 @@ The reporter's diagnosis matches F4 exactly:
 
 Maintainer's fix: a **core, always-loaded** profile
 `profiles/50-integrations-core/ssh-agent-default-deny.sb`, which is present in
-the shipped v0.10.1 binary:
+the shipped v0.10.1 binary (still present in v0.12.0):
 
 ```scheme
 ;; #safehouse-test-id:ssh-agent-socket-deny# Keep SSH agent credential use opt-in.
@@ -191,7 +194,7 @@ Also relevant, `default-assumptions` on another "escape hatch":
 | F4 ssh-agent | Reported #36, **fixed** by core default-deny in v0.4.0, re-opened only by `--enable=ssh` | **Local deviation.** Restore the deny (P3) = revert to upstream default. |
 | F7 env inheritance | Explicitly warned for `--env` / `shell-init` | **Local deviation.** Use sanitized env + `--env-pass` (P4). |
 | F8 egress | Documented limitation ("preventing exfiltration/C2 is NOT a goal") | Won't be "fixed" upstream; treat as accepted risk or add your own controls. |
-| — | v0.10.1 vs v0.12.0 | Consider upgrading; re-verify the generated policy afterwards. Re-check issues #102, #118. |
+| — | local fork authored for v0.10.1; **installed is now v0.12.0** | Upgrade done. The fork is still loaded, so re-generate before expecting stricter defaults. Re-check issues #102, #118. |
 
 ### Recommended direction
 

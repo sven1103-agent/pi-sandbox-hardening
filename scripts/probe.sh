@@ -13,6 +13,13 @@ set -uo pipefail
 policy="${1:?usage: probe.sh <policy-file> <command...>}"; shift
 [[ -f "$policy" ]] || { echo "policy not found: $policy" >&2; exit 2; }
 
+# If nested sandbox-exec is refused we are already confined, and every probe
+# would be misread (see EVIDENCE.md E7 and the retracted FINDINGS F1).
+if ! sandbox-exec -p '(version 1)(allow default)' -- /usr/bin/true >/dev/null 2>&1; then
+  echo "INCONCLUSIVE (already inside a sandbox — run from an unconfined shell)"
+  exit 3
+fi
+
 out="$(sandbox-exec -f "$policy" -- "$@" 2>&1)"
 rc=$?
 

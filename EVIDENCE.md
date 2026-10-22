@@ -161,7 +161,16 @@ Result: `id_rsa`, `jenkins`, `id_ed25519` usable with an empty passphrase.
 
 ---
 
-## E7 — Sandbox bypass / nesting behaviour  (F1, F9)
+## E7 — Sandbox bypass / nesting behaviour  (F1 retracted, F9)
+
+> **Correction:** the "ALLOWED" results below are *not* evidence that pi was
+> unsandboxed. That session ran from `$HOME`, so the wrapper's dynamic workdir
+> grant added `(allow file-read* file-write* (subpath "$HOME"))` and exposed
+> `~/.ssh`, `~/.zshrc` and the keychain. The process was **confined but
+> over-granted**. See FINDINGS F1 (retracted) and F11 (clean re-measurement).
+> The nesting refusal and the `/bin/ps` denial below actually *prove* the sandbox
+> was applied. Keep these commands as the "am I confined?" check; do not read
+> them as a bypass.
 
 ```bash
 sandbox-exec -p '(version 1)(allow default)' -- /bin/echo hi
@@ -205,8 +214,10 @@ probe "HF_TOKEN in env"    '[ -n "$HF_TOKEN_STRICT" ]'
 
 Observed with a realistic workdir (base policy sound): keychain, gh token,
 `~/.config/gh/hosts.yml`, `ssh-add -l`, `~/.zshrc`, JetBrains `github.xml`
-→ all **denied**. The F2/F4 holes are `grants.sb`-/re-allow-specific, and F1
-shows the policy can be bypassed entirely.
+→ all **denied**. The F2/F4 holes are `grants.sb`-/re-allow-specific. Note this
+list describes the *base* `agent.sb` in isolation: the **effective** policy the
+wrapper loads also concatenates `grants.sb` (+ `~/.safehouse-tmux.sb`), which
+re-opens keychain and ssh-agent even with a realistic workdir. See F11.
 
 ---
 

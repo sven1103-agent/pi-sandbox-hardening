@@ -29,7 +29,18 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 
 ## Phase 1 — Make the sandbox non-bypassable
 
-### P1 — Sandbox the session, not the `pi` invocation  [fixes F1]
+### P1 — Sandbox the session, not the `pi` invocation  [F1 retracted; still worth doing]
+
+> **F1 was a measurement artifact, not a sandbox bypass.** The earlier session ran
+> from the home folder, so `WORK_DIR=$HOME` and the wrapper appended
+> `(allow file-read* file-write* (subpath "$HOME"))`, exposing `~/.ssh`,
+> `~/.zshrc` and the keychain. Re-verified (F11): with a real workdir the sandbox
+> holds. The residual issue is only that a *direct* `pi`/`pi-native` invocation
+> is unconfined — an invocation problem, not a policy hole.
+
+- [ ] **P1.0** Always start agent sessions from a real workdir, never `$HOME`.
+      `scripts/build-policy.sh` and `scripts/selftest.sh` now refuse `$PWD=$HOME`
+      so this mistake cannot silently recur.
 - [ ] **P1.1** Create a launcher for a **confined tmux server** so every child
       (`pi`, `pi-native`, subshells, MCP servers, extensions) is inside one
       boundary. Sketch: `scripts/agent-tmux.sh`
@@ -164,8 +175,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 - [ ] **P6.1** In `agent.sb`, remove the wizard-generated grant for
       `/Users/sven1103/.agent/ssh` (line ~851) unless a concrete workflow needs
       it; if needed, narrow to an exact `literal` file and mark it read-only.
-- [ ] **P6.2** Review `~/.agent/ssh/agent-github-key` — decide whether it should
-      exist, and protect it with a passphrase if it stays.
+- [ ] **P6.2** Review `~/.agent/ssh/github_login_ed25519` (mode `0600`) — decide
+      whether it should exist, and protect it with a passphrase if it stays.
+      (Earlier drafts named a non-existent `agent-github-key`; see F5/F11.)
 
 ### P7 — Protect on-disk SSH keys  [fixes F6]
 - [ ] **P7.1** `[!]` Add passphrases to `~/.ssh/id_rsa`, `~/.ssh/jenkins`,
@@ -190,10 +202,21 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 - [ ] **P8.2** If host filtering is impractical, add outbound telemetry/alerts
       instead of pretending egress is controlled.
 
-### P9 — Remove ambient git auth  [fixes F10]
+### P9 — Remove ambient git auth  [fixes F10, F12 — now load-bearing]
+
+> **F12:** your global gitconfig is an independent route to the login keychain.
+> Its host-scoped `credential.https://github.com.helper = !gh auth git-credential`
+> answers for github.com, so `git credential fill` returns a token from inside the
+> sandbox even if the keychain DB grant is removed. Pointing the agent at its own
+> `GIT_CONFIG_GLOBAL` closes this (verified) — so P9 is required for P2 to actually
+> hold, not cosmetic. The system `credential.helper=osxkeychain` is latent
+> (no github.com item) and is *not* the leaker. See FINDINGS F12.
+
 - [ ] **P9.1** Remove global `credential.helper=gh` from `~/.gitconfig`; set it
       per-repo, or use a helper that returns credentials only for allow-listed
-      repos.
+      repos. **Also remove the host-scoped
+      `credential.https://github.com.helper = !gh auth git-credential` line** —
+      that is the one that actually answers.
 - [ ] **P9.2** Wash out `credential.https://github.com.helper` duplicates.
 
 ### P10 — Regression guard
@@ -211,9 +234,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 > explicitly supports layering: "Final-deny overlays should always remain possible
 > (`--append-profile`)."
 
-- [ ] **P11.1** Consider upgrading safehouse (`brew upgrade agent-safehouse`);
-      local is v0.10.1, upstream latest is v0.12.0. Re-verify generated policy
-      afterwards (issue #102 write-grant/persistence class may be affected).
+- [x] **P11.1** ~~Consider upgrading safehouse~~ **Done** — installed version is
+      now **v0.12.0** (upstream latest; verified with `safehouse --version`).
+      Re-verify the generated policy after switching to it (issue #102
+      write-grant/persistence class may be affected). Note: the hand-edited
+      `agent.sb`/`grants.sb` fork is still what the wrapper loads, so the upgrade
+      alone changes nothing until P11.2 is done.
 - [ ] **P11.2** Prefer letting `safehouse` generate the policy from flags, then
       add only a small `--append-profile` overlay for local needs, instead of
       maintaining a full hand-edited profile.
@@ -232,6 +258,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 ## Verification checklist (run after each phase)
 
 ```bash
+# 0. Run from a REAL workdir, never $HOME (see F1/F11) — scripts enforce this
+cd "$HOME/git/<some-repo>"
+
 # 1. Keychain not reachable from a confined process
 security find-generic-password -s gh:github.com -w >/dev/null 2>&1 && echo LEAK || echo blocked
 
