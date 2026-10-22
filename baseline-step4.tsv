@@ -1,0 +1,34 @@
+# pi-sandbox selftest baseline
+# recorded: 2026-10-22T13:22:27Z
+# policy:   /tmp/pi-effective-policy.sb
+# columns: expect<TAB>name<TAB>opt<TAB>state<TAB>verdict
+deny	keychain-db(read)	required	DENIED	ok
+deny	keychain-db(write)	required	DENIED	ok
+deny	security:any gh token	required	FAILED	ok
+deny	security:personal	required	FAILED	ok
+deny	security:bot	required	FAILED	ok
+deny	ssh-agent(list)	required	FAILED	ok
+deny	ssh: id_rsa	required	DENIED	ok
+deny	ssh: id_ed25519	required	DENIED	ok
+deny	ssh: any private key	required	FAILED	ok
+deny	ssh: agent socket	required	FAILED	ok
+deny	human gh hosts.yml	required	DENIED	ok
+deny	zshrc	required	DENIED	ok
+deny	env: HF_TOKEN_STRICT	required	FAILED	ok
+deny	git-credentials	required	MISSING	ok
+deny	netrc	required	MISSING	ok
+deny	git credential fill	required	NO_CREDENTIAL	ok
+deny	policy dir	required	DENIED	ok
+allow	workdir(read)	required	REACHABLE	ok
+allow	workdir(write)	required	REACHABLE	ok
+allow	agent: pi auth.json	required	REACHABLE	ok
+allow	agent: ssh key	required	REACHABLE	ok
+allow	agent: gh config	optional	REACHABLE	ok
+allow	agent: gh api(own)	optional	REACHABLE	ok
+allow	net: model endpoint	required	REACHABLE	ok
+allow	net: openrouter	required	REACHABLE	ok
+allow	net: mcp.vaadin.com	required	REACHABLE	ok
+allow	net: github https	required	REACHABLE	ok
+allow	wiring: launcher env	required	REACHABLE	ok
+allow	wiring: agent gitconfig	required	REACHABLE	ok
+allow	wiring: agent gh token	required	REACHABLE	ok

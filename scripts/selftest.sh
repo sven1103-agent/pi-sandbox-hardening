@@ -32,6 +32,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Endpoint of the model provider you actually use. Override to match your setup;
 # the default is a placeholder so the public example stays generic.
 MODEL_ENDPOINT="${MODEL_ENDPOINT:-https://llm.internal.example.com}"
+# Ambient ssh-agent socket, captured so a probe can force it back INTO the
+# sandbox. Step 5 strips SSH_AUTH_SOCK from pi's environment, which means the
+# ordinary ssh-agent probes would pass even if the POLICY still granted the
+# socket. Injecting it here makes those probes measure the policy itself.
+AMBIENT_SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}"
 
 MODE=run
 SNAPSHOT=""
@@ -96,12 +101,16 @@ add deny "security:any gh token" required '/usr/bin/security find-generic-passwo
 add deny "security:personal"     required '/usr/bin/security find-generic-password -s gh:github.com -a sven1103 -w'
 add deny "security:bot"          required '/usr/bin/security find-generic-password -s gh:github.com -a sven1103-agent -w'
 add deny "ssh-agent(list)"       required '/usr/bin/ssh-add -l'
+# Policy-level: force SSH_AUTH_SOCK back in, so this measures the SBPL deny and
+# not merely step-05's env stripping. Fails if the policy re-opens the socket.
+add deny "ssh-agent(policy)"     required 'SSH_AUTH_SOCK="'"$AMBIENT_SSH_AUTH_SOCK"'" /usr/bin/ssh-add -l'
 add deny "ssh: id_rsa"           required 'head -c1 "$HOME/.ssh/id_rsa"'
 add deny "ssh: id_ed25519"       required 'head -c1 "$HOME/.ssh/id_ed25519"'
   # Probe ANY remaining private key, so a renamed key is still covered.
   # The repo is genericized: do not hardcode a personal key filename.
   add deny "ssh: any private key"  required 'for f in "$HOME"/.ssh/id_* "$HOME"/.ssh/*_id_*; do case "$f" in *.pub) continue;; esac; [ -f "$f" ] && head -c1 "$f" && exit 0; done; exit 1' 
 add deny "ssh: agent socket"     required 'python3 -c "import socket,os;s=socket.socket(socket.AF_UNIX);s.connect(os.environ[\"SSH_AUTH_SOCK\"])"'
+add deny "ssh: agent socket(policy)" required 'SSH_AUTH_SOCK="'"$AMBIENT_SSH_AUTH_SOCK"'" python3 -c "import socket,os;s=socket.socket(socket.AF_UNIX);s.connect(os.environ[\"SSH_AUTH_SOCK\"])"'
 add deny "human gh hosts.yml"    required 'cat "$HOME/.config/gh/hosts.yml"'
 add deny "zshrc"                 required 'cat "$HOME/.zshrc"'
 add deny "env: HF_TOKEN_STRICT"  required '[ -n "${HF_TOKEN_STRICT:-}" ]'
