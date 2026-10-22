@@ -400,3 +400,59 @@ Post-session checks (nothing left behind):
 **Step 3b is done.** The agent now reads only its own keychain; the login and
 System keychains are unreachable from inside the sandbox; your shell is
 unchanged.
+
+---
+
+## Auto-lock disabled (deliberate trade-off)
+
+`security create-keychain` gives a new keychain `lock-on-sleep timeout=300s`.
+The login keychain is `no-timeout`, which is why it never prompts. With the
+300s auto-lock the agent keychain **relocks after 5 minutes idle or on sleep**,
+and the next key read re-prompts.
+
+**Applied:**
+
+```bash
+security set-keychain-settings "$HOME/.agent/agent.keychain-db"   # -> no-timeout
+```
+
+**Why this matters more with subagents.** `pi-subagents` spawns each subagent as
+a **new OS process** (`src/runs/background/async-execution.js:517`):
+
+```js
+const proc = spawn(spawnCommand, spawnArgs, { env: runnerEnv, ... })
+// runnerEnv = { ...omitGitRoutingEnv(omitExtensionBindingsEnv(process.env)), ... }
+```
+
+Two consequences:
+
+1. Every subagent is a fresh process that independently resolves `auth.json`
+   (`!security find-generic-password -ws <svc>`) — so N subagents = N key reads.
+2. `runnerEnv` **inherits `process.env`** (it strips only git-routing and
+   extension-binding vars). So every subagent also inherits `SSH_AUTH_SOCK` and
+   any exported secret — see Step 5.
+
+Unlock state lives in `securityd`, keyed by UID, so it is shared by all
+processes. Once unlocked, subagents inherit it. Without a timeout the keychain
+stays unlocked across the session, so no re-prompt storm.
+
+**Accepted risk:** the agent keychain remains unlocked until you lock it or
+reboot. Compensating controls: the sandbox denies the login and System
+keychains and `~/.ssh`, and this keychain holds only the three provider keys the
+agent is meant to use. Same posture as the login keychain.
+
+**Revert:**
+```bash
+security set-keychain-settings -t 300 -l "$HOME/.agent/agent.keychain-db"
+```
+
+### Side note: confinement is inherited, not re-applied
+
+`pi-subagents` contains **no** `sandbox-exec` wrapping. Subagents inherit the
+parent's confinement, which is correct — but it means:
+
+- pi started via the sandboxed launcher → all subagents sandboxed
+- pi started via `pi-native` or bare `pi` → **every subagent unconfined**
+
+Worth verifying explicitly (see `TESTING.md`), because delegation must not become
+a bypass.
