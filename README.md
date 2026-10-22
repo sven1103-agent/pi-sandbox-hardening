@@ -1,6 +1,6 @@
 # Pi Sandbox Hardening — Handoff
 
-**Status:** investigation complete, no changes applied yet
+**Status:** Steps 1–3b applied and verified; remaining findings documented
 **Created:** 2026-10-22
 **Owner:** sven1103
 **Goal:** Keep running the pi coding agent as the normal user `sven1103` (no second

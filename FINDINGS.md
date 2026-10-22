@@ -219,7 +219,8 @@ Previous (valid) observations with a realistic workdir and this policy:
 `keychain`, `gh token`, `~/.config/gh/hosts.yml`, `ssh-add -l`, `~/.zshrc`,
 JetBrains `github.xml` → **denied**. Those runs demonstrate the *base* policy is
 sound; the keychain/ssh-agent holes in F2/F4 are conditional on `grants.sb` and
-the specific re-allow blocks, and F1 shows the whole policy can be bypassed.
+the specific re-allow blocks, and the retracted F1 was an artifact of running
+from `$HOME` rather than evidence of a bypass.
 
 ---
 
