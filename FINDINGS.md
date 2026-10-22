@@ -285,6 +285,46 @@ system `credential.helper=osxkeychain` is **latent, not active**: there is no
 
 ---
 
+## F13 — gh's keyring reads fall through, but its writes do not  [info]
+
+Measured while evaluating whether the agent's own `gh` token could move from a
+plaintext file into the agent keychain. Two asymmetries that are easy to get
+wrong, and that no `gh` documentation states:
+
+`gh` uses `zalando/go-keyring`, which shells out to `security` with **no
+keychain argument** in both directions:
+
+```
+read : security find-generic-password -s gh:github.com -a <account> -w
+write: security add-generic-password -U -s %s -a %s -w %s
+```
+
+- **Read** → searches the user-wide **search list**, so a file-denied
+  `login.keychain-db` **falls through** to `~/.agent/agent.keychain-db`. Proven
+  by planting a bogus token in the agent keychain and observing `gh` read it:
+  `Failed to log in ... (keyring) - The token in keyring is invalid`.
+- **Write** → `security` sends an argument-less write to the **default**
+  keychain, which is `login` — the one the sandbox denies. So `gh auth login`
+  can never persist a token from inside the sandbox, and the agent **cannot
+  self-heal an expired token**. Migration must be an unconfined, deliberate step.
+
+Also worth recording:
+
+- The keychain is a **positional** argument to `add-generic-password`; there is no
+  `-k` flag. A `-k` invocation prints usage and stores nothing — a silent no-op.
+- `gh` distinguishes the paths in `gh auth status`: `(default)` = no keychain item
+  found, `(keyring)` = a keychain item was located. That makes verification easy
+  without ever printing a token.
+- Values are stored as `go-keyring-base64:<base64(token)>`.
+
+**Consequence for the harness:** once the agent's token lives in the agent
+keychain, the DENY probes `security:any gh token` and `security:bot` would find
+it — correctly. They must be re-scoped (`security:personal` stays DENY;
+`security:bot` becomes ALLOW) or the suite will report a `LEAK` for a state we
+deliberately created. See `STEP-01b-gh-token-in-agent-keychain.md`.
+
+---
+
 ## F10 — Other credential stores checked (negative results)  [L]
 
 - No plaintext tokens found in `~/.zshrc`, `~/.zshenv`, `~/.zprofile`,

@@ -111,6 +111,31 @@ CHANGED  agent: gh config   DENIED/NOTYET -> REACHABLE/ok
 CHANGED  security:bot       REACHABLE/LEAK -> DENIED/ok
 ```
 
+### Probe scoping: expectations change when a credential legitimately moves
+
+A DENY check is an assertion about *how the world is configured*, not an eternal
+truth. Two `gh` probes assume the agent's token lives only in a plaintext file:
+
+```
+security:any gh token   security find-generic-password -s gh:github.com -w
+security:bot            security find-generic-password -s gh:github.com -a sven1103-agent -w
+```
+
+If the agent's token moves into the **agent keychain** (see
+`STEP-01b-gh-token-in-agent-keychain.md`), these become reachable **by design**,
+and the suite would report `LEAK` for a state we deliberately created. That is a
+harness bug, not a security result. Re-scope them:
+
+| probe | expectation |
+|---|---|
+| `security:personal` (`-a sven1103`) | DENY — never the agent's to hold |
+| `security:bot` (`-a sven1103-agent`) | ALLOW — the agent's own credential |
+| `security:any gh token` | retire — with no account it resolves to whichever the search list finds first |
+
+The invariant is unchanged: **the human's credentials must be unreachable; the
+agent's own must work.** When a probe disagrees with the invariant, check which
+one is wrong before "fixing" the policy.
+
 ## Working agreement for this repo
 
 1. **Record a baseline before each step.** No step is "done" without a diff.

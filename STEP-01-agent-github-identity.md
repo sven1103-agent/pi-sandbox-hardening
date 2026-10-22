@@ -82,6 +82,11 @@ chmod 600 "$HOME/.agent/gh/hosts.yml"
 > the login keychain. That is the deliberate trade — it is the agent's **own**
 > token, it keeps the human keychain closed, and it is not your personal token.
 > `--git-protocol ssh` ensures `gh` also uses SSH for git ops.
+>
+> **Superseded by Step 1b.** This file was the right call *before* the agent had
+> a keychain of its own. Step 3b created one, so the token can now live there in
+> encrypted form instead of plaintext. See
+> `STEP-01b-gh-token-in-agent-keychain.md`.
 
 ### 3. Verify identity and scope
 
