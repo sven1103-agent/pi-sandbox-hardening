@@ -1,0 +1,9 @@
+# No secrets, no rendered policies, no probe output should be committed here.
+*.bak
+*.bak-*
+/tmp/
+*.sb
+!*.sb.example
+probe-output*.txt
+.env
+.env.*
