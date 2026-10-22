@@ -98,7 +98,9 @@ add deny "security:bot"          required '/usr/bin/security find-generic-passwo
 add deny "ssh-agent(list)"       required '/usr/bin/ssh-add -l'
 add deny "ssh: id_rsa"           required 'head -c1 "$HOME/.ssh/id_rsa"'
 add deny "ssh: id_ed25519"       required 'head -c1 "$HOME/.ssh/id_ed25519"'
-add deny "ssh: id_human_ed25519"          required 'head -c1 "$HOME/.ssh/id_human_ed25519"'
+  # Probe ANY remaining private key, so a renamed key is still covered.
+  # The repo is genericized: do not hardcode a personal key filename.
+  add deny "ssh: any private key"  required 'for f in "$HOME"/.ssh/id_* "$HOME"/.ssh/*_id_*; do case "$f" in *.pub) continue;; esac; [ -f "$f" ] && head -c1 "$f" && exit 0; done; exit 1' 
 add deny "ssh: agent socket"     required 'python3 -c "import socket,os;s=socket.socket(socket.AF_UNIX);s.connect(os.environ[\"SSH_AUTH_SOCK\"])"'
 add deny "human gh hosts.yml"    required 'cat "$HOME/.config/gh/hosts.yml"'
 add deny "zshrc"                 required 'cat "$HOME/.zshrc"'
@@ -151,7 +153,14 @@ classify() { # cmd -> REACHABLE|DENIED|MISSING|FAILED|INCONCLUSIVE
   # a LEAK that the real agent session does not actually have.
   # --agent-env=ambient disables this to inspect the raw policy.
   if [[ "${AGENT_ENV_MODE:-agent}" == agent ]]; then
-    out="$(sandbox-exec -f "$POLICY" -- /usr/bin/env \
+    # Mirror the launcher's Step 5 sanitization: env -i with the same allowlist,
+    # so ambient secrets (SSH_AUTH_SOCK, *_TOKEN) are NOT visible. Without this
+    # the harness would report LEAKs the real session cannot have.
+    out="$(sandbox-exec -f "$POLICY" -- /usr/bin/env -i \
+            PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+            HOME="$HOME" USER="${USER:-$(id -un)}" LOGNAME="${LOGNAME:-$(id -un)}" \
+            SHELL="${SHELL:-/bin/zsh}" TMPDIR="${TMPDIR:-/tmp}" \
+            TERM="${TERM:-xterm-256color}" LANG="${LANG:-en_US.UTF-8}" \
             GH_CONFIG_DIR="$HOME/.agent/gh" \
             GIT_CONFIG_GLOBAL="$HOME/.agent/gitconfig" \
             GIT_CONFIG_SYSTEM=/dev/null \

@@ -190,3 +190,69 @@ cp -p ~/.config/sandbox-exec/run-sandboxed.sh.bak-<stamp> \
 ```
 
 No policy change, no keychain change — this step touches only the launcher.
+
+---
+
+## APPLIED and verified
+
+Applied to `~/.config/sandbox-exec/run-sandboxed.sh` by `scripts/apply-step-05.sh`.
+Backup: `run-sandboxed.sh.bak-20261022-150545`.
+
+### Result: 4 leaks -> 1
+
+```
+baseline-step3b : ssh-agent(list) · ssh: agent socket · human gh hosts.yml · env: HF_TOKEN_STRICT
+baseline-step5  : human gh hosts.yml
+```
+
+Diff (all three are leaks we intended to close — note these are closed by the
+**environment**, not by the policy, so the policy is unchanged):
+
+```
+CHANGED  ssh-agent(list)      REACHABLE/LEAK -> FAILED/ok
+CHANGED  ssh: agent socket    REACHABLE/LEAK -> FAILED/ok
+CHANGED  env: HF_TOKEN_STRICT REACHABLE/LEAK -> FAILED/ok
+```
+
+`SSH_AUTH_SOCK` is now absent, so `ssh-add -l` and the socket probe both fail —
+**F4's practical exposure is closed without touching the SBPL grant.** ALLOW suite:
+0 BROKEN (workdir, pi auth.json, agent ssh key, agent gh config, all four network
+endpoints, and all three wiring checks still pass).
+
+### Remaining leak is separate and pre-existing
+
+`human gh hosts.yml` is **not** caused by this step — it is `REACHABLE` in
+`baseline-step2.tsv` and `baseline-step3b.tsv` too. Cause found:
+
+```
+agent.sb:741:  (home-subpath "/.config/gh")   ;; gh auth tokens/config for repo and PR automation.
+```
+
+That is the **default Safehouse core grant** for the personal `gh` config, which
+holds `sven1103`'s token. Step 2 gave the agent its own `~/.agent/gh`, so this
+grant is no longer needed. It is a candidate for a following step (narrow it to
+`file-read-metadata`, or deny it).
+
+### Two harness bugs found and fixed while applying
+
+1. **`selftest.sh` did not model the sanitized environment.** It ran probes with
+   `sandbox-exec -- env VAR=... /bin/sh -c ...` (no `-i`), so it still saw the
+   ambient `SSH_AUTH_SOCK` / `HF_TOKEN_STRICT` and reported LEAKs the real session
+   cannot have. Now mirrors the launcher's `env -i` allowlist. **Without this fix
+   the harness would have understated the result and shown false LEAKs.**
+
+2. **A genericized probe tested a nonexistent file.** The earlier genericization
+   renamed the SSH-key probe target to `~/.ssh/id_human_ed25519`, which does not
+   exist on this machine, so the check silently degraded `DENIED -> MISSING` —
+   passing without testing anything. Replaced with a probe over any real
+   `~/.ssh/id_*` / `*_id_*` private key, so it cannot rot when a key is renamed.
+
+### Note on the launcher patch mechanism
+
+`NEW_BLOCK="$(cat <<'BLOCK' ... )"` **strips backslash-newline continuations**,
+joining continued lines. Harmless for statements, but it silently produced
+`exec ... env -i "${env_args[@]}"   /opt/homebrew/bin/pi ...` on one line — which
+is exactly the class of bug behind the STEP-02 launcher incident (comments or
+truncation inside a continued `exec`). The generated block therefore avoids
+line continuations entirely: every statement is on one line. `verify-launcher.sh`
+plus the new behavioural probe (pi must be the **last** argv element) gate this.
