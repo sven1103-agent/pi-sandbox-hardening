@@ -5,6 +5,12 @@ Environment: macOS 26.7.1 (Tahoe), user `sven1103`, Homebrew `agent-safehouse` 0
 
 Severity legend: **C**ritical / **H**igh / **M**edium / **L**ow
 
+> **Status:** these are findings about the state *before* hardening. All
+> credential-exposure findings (F2, F3, F4, F5, F7, F12) have since been
+> addressed — see `README.md` for the result and `STEP-*.md` for the
+> implementations. F1 is **retracted** (see F1/F11). F8 (unrestricted egress)
+> remains open by design.
+
 ---
 
 ## F1 — RETRACTED: the "unsandboxed" result was a `WORK_DIR=$HOME` artifact  [was C → info]

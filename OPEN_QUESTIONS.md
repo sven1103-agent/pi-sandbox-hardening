@@ -1,5 +1,12 @@
 # Open questions / decisions needed
 
+> **Status: historical.** Written before implementation. The credential questions
+> (Q1, Q8.1, Q9) were resolved by the implementation — Q1 by **option A**
+> (dedicated agent keychain, see `STEP-03b-agent-keychain.md`), Q9 by applying the
+> local changes. Still genuinely open: **Q8.2** (generate policy instead of
+> forking), **Q8.3** (`--enable=ssh` no longer needed after Step 4), and **Q8.4**
+> (upstream wizard report). See `README.md`.
+
 Answer these to unblock implementation. Each maps to a plan item.
 
 ## Q1 — GitHub auth inside the sandbox (blocks P2.3)

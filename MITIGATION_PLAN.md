@@ -1,5 +1,22 @@
 # Mitigation Plan
 
+> **Status: historical planning document — kept for traceability.**
+>
+> This was the plan written *before* any change was made. It is **not** a
+> description of what was ultimately done: the implementation diverged in two
+> important ways, and the step documents are authoritative.
+>
+> | Plan item | What actually happened |
+> |---|---|
+> | P2 — remove the keychain hole | Superseded by **Step 3b**: rather than removing keychain access (which broke every provider, since `auth.json` resolves keys via `security find-generic-password`), the agent got its **own** keychain. See `STEP-03b-agent-keychain.md`. |
+> | P3 — remove ssh-agent access | Implemented as **Step 4** (`STEP-04-ssh-agent-deny.md`), plus **Step 5** which removes `SSH_AUTH_SOCK` from the environment. |
+> | P4 — stop environment inheritance | Implemented as **Step 5** (`STEP-05-env-sanitization.md`). |
+> | P5–P8, P10, P11 | Not done. `P5` (retire the personal token) is now **unnecessary**: Step 3b denies the login keychain entirely. P8 (egress) and P11 (stop forking upstream) remain open. |
+> | — | **Added:** Step 1/2 (agent identity), Step 6 (personal `gh` config deny). |
+>
+> Checkbox counts below are therefore misleading and are left as-written.
+> See `README.md` for the actual outcome and `STEP-*.md` for the implementations.
+
 Ordered so that **irreversible/account-level actions are separated from local
 policy edits**. Do the account hygiene (P5/P7) first if there is any chance the
 host is already compromised; otherwise P1–P4 give the biggest gain per effort.
