@@ -75,3 +75,26 @@ read `FINDINGS.md` + `MITIGATION_PLAN.md` and continue without re-investigating.
 - Back up any policy file before editing (`*.bak-<date>`).
 - Changes to `~/.config/sandbox-exec/*` affect the user's daily workflow; make
   them opt-in/incremental and verify pi still starts.
+
+## Adapting to your own setup
+
+This repo is **genericized** — internal endpoints, org names, and personal
+details are placeholders (`example-org`, `llm.internal.example.com`,
+`you@example.com`, `id_human_ed25519`). Point the harness at your own
+environment with environment variables rather than editing files; see
+**"Adapting this to your own setup"** in `TESTING.md` for the full table.
+
+Two you will likely need:
+
+```bash
+MODEL_ENDPOINT="https://your-gateway.example.org" \
+LITELLM_MODELS_URL="https://your-gateway.example.org/v1/models" \
+  scripts/selftest.sh
+```
+
+Git hooks live in `scripts/hooks/` (versioned) rather than `.git/hooks/`
+(untracked). Install them with `scripts/install-hooks.sh`.
+
+## License
+
+MIT — see `LICENSE`.
