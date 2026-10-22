@@ -159,3 +159,60 @@ Placeholder names used throughout:
 | `you@example.com` | your email |
 | `id_human_ed25519` | your personal SSH key filename |
 | `sven1103-agent` | the agent's own identity (keep or rename) |
+
+---
+
+## Verifying subagent confinement (important)
+
+`pi-subagents` spawns each subagent as a **new `pi` process** and does **not**
+wrap it in `sandbox-exec` — it inherits the parent's confinement. So a sandboxed
+parent yields sandboxed subagents, but an **unconfined parent makes every
+subagent a full bypass** of the policy.
+
+Test it from a sandboxed session. In a **new terminal**:
+
+```bash
+# 1. start pi via the sandboxed alias (NOT pi-native, NOT bare pi)
+~/.config/sandbox-exec/run-sandboxed.sh
+
+# 2. inside pi, ask a subagent to run a marker command, e.g.
+#    "run: ps -o pid=,ppid=,comm= -ax | grep -E 'pi|sandbox-exec' | head -30"
+```
+
+Then check the process tree. A **sandboxed** subagent has a `sandbox-exec`
+ancestor:
+
+```
+/usr/bin/sandbox-exec -f /var/folders/.../safehouse-policy.XXXX
+  └─ node .../pi-subagents/.../runner.mjs
+       └─ /opt/homebrew/bin/pi --mode rpc ...
+```
+
+If the subagent's lineage reaches `login`/`iTermServer` **without** a
+`sandbox-exec` in between, it is unconfined. Confirm behaviourally — a
+sandboxed subagent must NOT be able to read these:
+
+```bash
+head -c1 ~/Library/Keychains/login.keychain-db      # must fail
+security find-generic-password -s gh:github.com -a sven1103 -w   # must fail
+head -c1 ~/.ssh/id_human_ed25519                    # must fail
+```
+
+A quick scripted probe:
+
+```bash
+scripts/selftest.sh          # DENY suite must show no LEAK from inside the sandbox
+```
+
+**If subagents turn out to be unconfined:** do not rely on the policy while
+delegating. Either always launch pi through the sandboxed launcher, or add an
+explicit guard. This is a **precondition** for treating the sandbox as a
+boundary, because delegation multiplies every hole by N.
+
+### Related: subagents inherit the environment
+
+`runnerEnv` is built as `{ ...omitGitRoutingEnv(omitExtensionBindingsEnv(process.env)) }`,
+so subagents inherit `SSH_AUTH_SOCK` and any exported secret. Every subagent can
+therefore use your ssh-agent to sign as you unless Step 5 (env sanitization) and
+Step 4 (ssh-agent removal) are done. Sanitization at the launcher fixes this for
+subagents too, since they inherit from the parent pi process.
