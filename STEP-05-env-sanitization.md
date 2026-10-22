@@ -1,6 +1,8 @@
-# STEP-05 — Environment sanitization (PROPOSAL — not applied)
+# Step 5 — Environment sanitization (applied)
 
-**Status:** proposal only. Nothing in this document has been applied.
+**Status:** applied and verified — see "APPLIED and verified" below.
+**Closes:** `FINDINGS.md` F7 (full environment inheritance), and with it F5/ssh-agent
+reachability via `SSH_AUTH_SOCK`.
 **Risk:** medium (touches the launcher's exec line — the same line involved in the
 earlier launcher incident).
 **Reversible:** yes, single-file backup + restore.

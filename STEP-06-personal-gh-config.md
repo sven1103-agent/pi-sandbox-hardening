@@ -1,4 +1,4 @@
-# STEP-06 — Deny the personal gh config (applied)
+# Step 6 — Deny the personal gh config (applied)
 
 Closes the last remaining leak: the Safehouse core SCM grant on `~/.config/gh`.
 See `README.md` for the project overview and `TESTING.md` for the harness.

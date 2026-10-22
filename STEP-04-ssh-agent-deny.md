@@ -1,4 +1,4 @@
-# STEP-04 — Deny ssh-agent access in the policy (applied)
+# Step 4 — Deny ssh-agent access in the policy (applied)
 
 Closes FINDINGS F4: the policy re-opened ssh-agent socket access.
 See `README.md` for the project overview and `TESTING.md` for the harness.
