@@ -49,6 +49,20 @@ Must be rotated (disclosed in plaintext in a prior session log).
 - [ ] Is an outbound host allowlist feasible, or should we rely on
       detection/alerting instead?
 
-## Q8 — Pending user preference
+## Q8 — Upstream alignment (new; see `UPSTREAM_STANCE.md`)
+
+- [ ] **Q8.1** Upgrade safehouse v0.10.1 → v0.12.0, then regenerate instead of
+      hand-editing? *(recommended)*
+- [ ] **Q8.2** Adopt "generate policy + small `--append-profile` final-deny
+      overlay" instead of maintaining `agent.sb`/`grants.sb`?
+- [ ] **Q8.3** Do you actually need `--enable=ssh` (ssh-agent) inside the sandbox,
+      or can git remotes use HTTPS + token? Blocking it is upstream's documented
+      default (and was fixed upstream in #36 / v0.4.0).
+- [ ] **Q8.4** Optional upstream report: the wizard-generated output can bake in
+      `--enable=ssh` + keychain while omitting the core
+      `ssh-agent-default-deny.sb`. Related upstream items: #71, #102, #118.
+      File it?
+
+## Q9 — Pending user preference
 - [ ] Apply P1–P4 locally now (reversible, with backups), or wait until the
       decisions above are made?

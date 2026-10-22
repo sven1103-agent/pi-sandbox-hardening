@@ -241,3 +241,21 @@ the specific re-allow blocks, and F1 shows the whole policy can be bypassed.
 | F7 | Full env inheritance | H | `env -i` allowlist (P4) |
 | F8 | Unrestricted egress | H | Optional egress allowlist (P8) |
 | F10 | Global git credential helper | M | Per-repo helper (P9) |
+
+## Upstream status of each finding
+
+See `UPSTREAM_STANCE.md` for sources. Summary of who owns the fix:
+
+| Finding | Upstream | Owner |
+|---|---|---|
+| F1 sandbox bypassable via alias | not a safehouse issue (invocation, not policy) | local (P1) |
+| F2 keychain rw | **by design**, opt-in; docs advise read-only | local deviation (P2) |
+| F3 two GitHub tokens | `gh`/`glab` token exposure is **default-on** via core `scm-clis.sb`; exfil explicitly not a goal | local + least privilege (P5) |
+| F4 ssh-agent usage | reported **#36**, fixed by core default-deny in **v0.4.0** | local deviation — revert to upstream (P3) |
+| F5 extra `~/.agent/ssh` key | wizard-generated extra grant | local (P6) |
+| F6 no-passphrase keys | out of scope for safehouse | local (P7) |
+| F7 env inheritance | `--env` warned against; sanitized mode is the default | local deviation (P4) |
+| F8 egress | documented **non-goal** ("preventing exfiltration/C2 is NOT a goal") | your call (P8) |
+| F10 global git helper | out of scope | local (P9) |
+| — version drift | local v0.10.1 vs upstream **v0.12.0** | consider upgrade (P11) |
+

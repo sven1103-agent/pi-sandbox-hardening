@@ -17,6 +17,7 @@ read `FINDINGS.md` + `MITIGATION_PLAN.md` and continue without re-investigating.
 | `FINDINGS.md` | Verified current state: what is exposed, with evidence |
 | `MITIGATION_PLAN.md` | Ordered, actionable fixes with checkboxes and exact edits |
 | `EVIDENCE.md` | Raw file excerpts, line numbers, reproduction commands |
+| `UPSTREAM_STANCE.md` | What Safehouse authors say; local vs upstream defaults |
 | `OPEN_QUESTIONS.md` | Unresolved items / decisions needed from the user |
 
 ## TL;DR
@@ -35,6 +36,21 @@ read `FINDINGS.md` + `MITIGATION_PLAN.md` and continue without re-investigating.
 5. **A personal-account GitHub OAuth token (`sven1103`) sits in the login
    keychain next to the bot token** and is readable by any unconfined process
    under this UID.
+
+### Upstream context (see `UPSTREAM_STANCE.md`)
+
+- Safehouse **documents** that it does not protect against "abuse through
+  already-allowed IPC/credential channels" or "leakage from explicitly allowed
+  paths", and that "preventing exfiltration/C2 is NOT a goal". Keychain is an
+  **intentional opt-in**, not a bug.
+- The **ssh-agent** exposure *was* reported (#36) and fixed by deny-by-default in
+  v0.4.0. The local policy **dropped that core deny** and baked in the
+  `--enable=ssh` allow → local setup is *less* safe than upstream defaults.
+- Upstream exposes `gh`/`glab` tokens **by default** via core `scm-clis.sb`, and
+  the local policy is **v0.10.1 while upstream is v0.12.0**.
+- Implication: prefer upstream generation + a small `--append-profile` final-deny
+  overlay over a hand-maintained fork, and make the bot token least-privilege
+  rather than relying on hiding it.
 
 ## Ground rules for the next agent
 

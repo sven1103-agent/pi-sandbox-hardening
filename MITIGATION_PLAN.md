@@ -52,6 +52,18 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
       "fix" that; the outer policy is the boundary.
 
 ### P2 — Remove the keychain hole  [fixes F2]
+
+> Context: keychain access is an upstream **opt-in** (`--enable=keychain`,
+> auto-injected only for agent profiles that declare it; `60-agents/pi.sb` does
+> **not**). The `grants.sb` blocks are a trimmed copy of upstream's
+> `55-integrations-optional/keychain.sb`, except upstream's docs advise making it
+> **read-only** while the local copy grants `file-write*`. Upstream treats this as
+> by-design, so there is no upstream fix to wait for — it is a local deviation.
+> See `UPSTREAM_STANCE.md` §3.
+>
+> Note also: removing the keychain grant does **not** hide the `gh` token if it is
+> stored in `~/.config/gh/hosts.yml`, because core `scm-clis.sb` grants that path
+> by default. Prefer the least-privilege token approach (P5).
 - [ ] **P2.1** In `~/.config/sandbox-exec/grants.sb`, **delete lines 31–58**
       (the entire `Integration: Keychain (GitHub-Auth via gh CLI)` block,
       including the `mach-lookup` on `SecurityServer` / `security.agent` /
@@ -75,7 +87,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
       curl -s --max-time 10 -o /dev/null -w '%{http_code}\n' https://api.github.com   # expect 200
       ```
 
-### P3 — Remove ssh-agent access  [fixes F4]
+### P3 — Remove ssh-agent access  [fixes F4; restores upstream default]
+
+> Context: this is **not** a novel finding. Upstream reported it as issue #36 and
+> fixed it in v0.4.0 by adding a core, always-loaded deny profile
+> `50-integrations-core/ssh-agent-default-deny.sb`. The local policy omits that
+> profile and instead bakes in the optional `--enable=ssh` allows. So this task is
+> best framed as **reverting a local deviation to upstream's documented default**
+> (`default-assumptions`: ssh agent sockets denied "unless `ssh` is enabled").
+> See `UPSTREAM_STANCE.md` §2.
 - [ ] **P3.1** In `agent.sb`, delete lines ~787–809:
       - `(allow file-read-metadata (home-literal "/.ssh/agent"))`
       - the `file-read* file-write* file-read-metadata` block on the
@@ -90,7 +110,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
       must still work via `allowed_signers` + an unconfined signer, or be
       documented as intentionally unavailable.
 
-### P4 — Stop environment inheritance  [fixes F7]
+### P4 — Stop environment inheritance  [fixes F7; use upstream's sanitized mode]
+
+> Context: upstream warns that `--env` "forwards the entire inherited host
+> environment, including cloud credentials, API keys, and other secrets", and
+> ships **sanitized env by default** with `--env-pass=NAMES` for opt-ins. The local
+> wrapper's bare `env TMUX=…` reproduces the dangerous `--env` behaviour. Prefer
+> upstream's sanitized mode + `--env-pass` over a hand-rolled allowlist.
+> See `UPSTREAM_STANCE.md` §5.
 - [ ] **P4.1** In `run-sandboxed.sh`, replace the `env TMUX=...` form with an
       explicit allowlist:
       ```bash
@@ -152,7 +179,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 
 ## Phase 3 — Defense in depth
 
-### P8 — Constrain network egress  [fixes F8]
+### P8 — Constrain network egress  [accepts or mitigates F8; upstream won't fix]
+
+> Context: upstream lists "Data exfiltration over network from files the sandbox
+> is allowed to read" as an explicit **non-goal**, and `scm-clis.sb` states
+> "preventing exfiltration/C2 is NOT a goal". Expect no upstream change; decide
+> whether to accept the risk or add your own controls.
 - [ ] **P8.1** Replace `(allow network-outbound (remote ip))` with an allowlist
       of required hosts (model API, package registries, GitHub) if feasible.
 - [ ] **P8.2** If host filtering is impractical, add outbound telemetry/alerts
@@ -169,6 +201,31 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
       the launcher; **fail the launch** if any credential probe succeeds.
 - [ ] **P10.2** Record the expected results in this repo so future agents can
       diff behaviour.
+
+---
+
+### P11 — Stop forking upstream; use generated policy + final-deny overlay
+
+> Rationale: the local `agent.sb`/`grants.sb` drifted into a *less* safe
+> combination than upstream defaults (P2/P3/P4, `UPSTREAM_STANCE.md` §6). Upstream
+> explicitly supports layering: "Final-deny overlays should always remain possible
+> (`--append-profile`)."
+
+- [ ] **P11.1** Consider upgrading safehouse (`brew upgrade agent-safehouse`);
+      local is v0.10.1, upstream latest is v0.12.0. Re-verify generated policy
+      afterwards (issue #102 write-grant/persistence class may be affected).
+- [ ] **P11.2** Prefer letting `safehouse` generate the policy from flags, then
+      add only a small `--append-profile` overlay for local needs, instead of
+      maintaining a full hand-edited profile.
+- [ ] **P11.3** Use `safehouse --explain` / `--stdout` to diff effective grants
+      against expectations and against the local `agent.sb`.
+- [ ] **P11.4** Optional: use `<workdir>/.safehouse` (`add-dirs-ro=`, `add-dirs=`,
+      `enable=`, `append-profile=`) with `--trust-workdir-config` for per-project
+      grants instead of editing the global profile.
+- [ ] **P11.5** Do **not** enable `--enable=ssh` casually; it is the upstream gate
+      for ssh-agent credential use.
+- [ ] **P11.6** Avoid `--enable=launch-services` (`open` starts processes OUTSIDE
+      the sandbox with full user permissions) unless required.
 
 ---
 
