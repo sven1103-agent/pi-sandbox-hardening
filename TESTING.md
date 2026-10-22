@@ -125,3 +125,37 @@ CHANGED  security:bot       REACHABLE/LEAK -> DENIED/ok
 Baseline snapshots contain only check names, states and verdicts — no secret
 values — so they are safe to commit. If you prefer to keep them local, add
 `baseline-*.tsv` to `.gitignore`.
+
+---
+
+## Adapting this to your own setup
+
+This repo is genericized: internal endpoints, org names, and personal details are
+replaced with placeholders. To point the harness at your own environment, use
+these environment variables instead of editing files:
+
+| Variable | Default (placeholder) | What it is |
+|---|---|---|
+| `MODEL_ENDPOINT` | `https://llm.internal.example.com` | your litellm/model gateway, used by the ALLOW suite |
+| `LITELLM_MODELS_URL` | `https://llm.internal.example.com/v1/models` | the `/v1/models` URL your litellm key is verified against |
+| `AGENT_KEYCHAIN` | `$HOME/.agent/agent.keychain-db` | path to the agent's dedicated keychain |
+| `SANDBOX_GRANTS` | `$HOME/.config/sandbox-exec/grants.sb` | policy fragment to patch |
+| `SANDBOX_LAUNCHER` | `$HOME/.config/sandbox-exec/run-sandboxed.sh` | launcher to patch |
+
+Example, running against a real gateway:
+
+```bash
+MODEL_ENDPOINT="https://your-gateway.example.org" \
+LITELLM_MODELS_URL="https://your-gateway.example.org/v1/models" \
+  scripts/selftest.sh
+```
+
+Placeholder names used throughout:
+
+| Placeholder | Replaces |
+|---|---|
+| `example-org/example-app` | your GitHub org / repo |
+| `llm.internal.example.com` | your internal model gateway |
+| `you@example.com` | your email |
+| `id_human_ed25519` | your personal SSH key filename |
+| `sven1103-agent` | the agent's own identity (keep or rename) |

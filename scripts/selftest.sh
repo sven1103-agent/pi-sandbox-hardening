@@ -29,6 +29,10 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Endpoint of the model provider you actually use. Override to match your setup;
+# the default is a placeholder so the public example stays generic.
+MODEL_ENDPOINT="${MODEL_ENDPOINT:-https://llm.internal.example.com}"
+
 MODE=run
 SNAPSHOT=""
 JSON=0
@@ -112,7 +116,7 @@ add allow "agent: pi auth.json"  required 'head -c1 "$HOME/.pi/agent/auth.json"'
 add allow "agent: ssh key"       required 'head -c1 "$HOME/.agent/ssh/github_login_ed25519"'
 add allow "agent: gh config"     optional 'head -c1 "$HOME/.agent/gh/hosts.yml"'
 add allow "agent: gh api(own)"   optional 'head -c1 "$HOME/.agent/gh/hosts.yml" >/dev/null && GH_CONFIG_DIR="$HOME/.agent/gh" /opt/homebrew/bin/gh api user --jq .login'
-add allow "net: model endpoint"  required 'curl -s --max-time 10 -o /dev/null https://llm.internal.example.com'
+add allow "net: model endpoint"  required "curl -s --max-time 10 -o /dev/null $MODEL_ENDPOINT"
 add allow "net: openrouter"      required 'curl -s --max-time 10 -o /dev/null https://openrouter.ai'
 add allow "net: mcp.vaadin.com"  required 'curl -s --max-time 10 -o /dev/null https://mcp.vaadin.com'
 add allow "net: github https"    required 'git ls-remote https://github.com/eugene1g/agent-safehouse HEAD'

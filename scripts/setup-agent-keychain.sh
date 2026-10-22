@@ -34,6 +34,10 @@ done
 say() { printf '%s\n' "$*"; }
 [[ -n "$ADD" ]] && SERVICES=("$ADD")
 
+# Endpoint used to verify the litellm key. Override for your own provider; the
+# default is a placeholder so this example stays generic.
+LITELLM_MODELS_URL="${LITELLM_MODELS_URL:-https://llm.internal.example.com/v1/models}"
+
 SL_BAK="$(mktemp -t kc-searchlist)"
 
 # Restore the user-wide keychain search list, ensuring the login keychain is
@@ -154,7 +158,7 @@ check() { # name url
   unset k
 }
 
-check litellm             "https://llm.internal.example.com/v1/models"
+check litellm             "$LITELLM_MODELS_URL"
 check openrouter          "https://openrouter.ai/api/v1/models"
 check opencode-go-private "https://opencode.ai/zen/go/v1/models"
 
