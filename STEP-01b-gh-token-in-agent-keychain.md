@@ -146,7 +146,7 @@ sandboxed gh source        : (keyring)          <- the keychain, not a file
 sandboxed scopes           : gist, read:org, repo, workflow
 unconfined gh api user     : sven1103-agent
 unconfined gh source       : (keyring)
-harness                    : PASS (DENY 16/16, ALLOW 14/14)
+harness                    : PASS (DENY 17/17, ALLOW 14/14)
 ```
 
 ### A flaw in the first version of the script (fixed)
