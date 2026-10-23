@@ -2,8 +2,12 @@
 *.bak
 *.bak-*
 /tmp/
+# Rendered/compiled policies are host-specific and must never be committed.
 *.sb
-!*.sb.example
+# ...but the hand-maintained, genericised policy fragments in launcher/ ARE
+# versioned: they are the deliverable, and they contain no secrets or absolute
+# user paths (they use HOME_DIR + the home-literal/home-subpath helpers).
+!launcher/*.sb
 probe-output*.txt
 .env
 .env.*

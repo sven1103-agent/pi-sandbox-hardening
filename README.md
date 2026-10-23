@@ -7,9 +7,10 @@ GitHub as its own companion account — while it cannot read *your* credentials 
 Same machine, same user, no second account. **9 credential leaks → 0.** Every claim here was
 measured on a real system, not reasoned about.
 
-> **Start here** — [`TESTING.md`](TESTING.md) the harness · [`FINDINGS.md`](FINDINGS.md) what was
-exposed (F1–F13) · [`STEP-01`](STEP-01-agent-github-identity.md)→[`06`](STEP-06-personal-gh-config.md)
-what was changed · [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) what Safehouse does *not* promise
+> **Start here** — [`launcher/run-sandboxed.sh`](launcher/run-sandboxed.sh) the launcher ·
+> [`launcher/grants.sb`](launcher/grants.sb) the policy fragment · [`TESTING.md`](TESTING.md) the
+> harness · [`FINDINGS.md`](FINDINGS.md) what was exposed (F1–F13) ·
+> [`STEP-01`](STEP-01-agent-github-identity.md)→[`06`](STEP-06-personal-gh-config.md) what changed
 
 ```mermaid
 flowchart TB
@@ -42,26 +43,56 @@ Any prompt injection or leaked token is then effectively your credential. Two th
 2. **Verify with a DENY/ALLOW harness**, recording a baseline before every change.
 
 **[Agent Safehouse](https://agent-safehouse.dev)** (Apache-2.0) composes the deny-by-default
-macOS `sandbox-exec` policy. This repo is the **local policy configuration** layered on top of
-it, plus the measurements — and the mistakes.
+macOS `sandbox-exec` policy. This repo is the **launcher and local policy configuration** layered
+on top of it — which is where every step actually lands — plus the measurements, and the mistakes.
 
 ```mermaid
 flowchart LR
   SH["safehouse<br/>generates base policy"] --> B["agent.sb<br/>deny-by-default"]
-  GR["grants.sb<br/>local grants from this repo"] --> D{{"composed policy"}}
+  B --> D{{"composed policy"}}
+  GR["launcher/grants.sb<br/>local grants"] --> D
   WD["workdir<br/>per launch"] --> D
-  B --> D
-  D --> SE["sandbox-exec"]
-  SE --> PI["pi agent"]
+  LR["run-sandboxed.sh<br/>the launcher"] --> D
+  LR --> SE["sandbox-exec<br/>env -i pi"]
+  D -. "passed with -f" .-> SE
   style SH fill:#eef2fb,stroke:#4a6fa5,stroke-width:2px
   style GR fill:#eef7ee,stroke:#27ae60,stroke-width:2px
+  style LR fill:#eef7ee,stroke:#27ae60,stroke-width:2px
 ```
+
+## The launcher is the integration point
+
+[`launcher/run-sandboxed.sh`](launcher/run-sandboxed.sh) composes the policy and starts the agent.
+It is small, and it is where the hardening lives — read it first if you read only one file:
+
+| in the launcher | what it does |
+|---|---|
+| **policy composition** | base policy + workdir grant + `grants.sb`, concatenated in that order |
+| **keychain unlock** | prompts *before* entering the sandbox (an unlock outside is inherited inside) |
+| **`env -i` allowlist** | starts from an **empty** environment — Step 5 |
+| **`exec`** | replaces the shell, so the environment passed is the sanitized one |
+
+[`launcher/grants.sb`](launcher/grants.sb) is the local policy fragment, and the reason the
+hardening works at all: it is appended **after** the generated policy, and SBPL is
+**last-match-wins**, so a deny here overrides any broad allow the base policy contains. Every step
+landed there rather than in the generated file, which is regenerated on upgrade.
+
+The base `agent.sb` (~48 KB, host-specific) is **not** vendored — generate your own:
+
+```bash
+safehouse --stdout > ~/.config/sandbox-exec/agent.sb
+```
+
+Both files are genericised: they use `HOME_DIR` and the `home-literal` / `home-subpath` helpers
+from the generated policy, so they carry **no absolute user paths**.
 
 ## Where to look
 
 | If you want… | Read |
 |---|---|
-| **The harness** — DENY/ALLOW suites, baseline + diff workflow | **[`TESTING.md`](TESTING.md)** |
+| **The launcher** — composes the policy, unlocks, sanitizes, execs | **[`launcher/run-sandboxed.sh`](launcher/run-sandboxed.sh)** |
+| **The policy fragment** where every step landed | [`launcher/grants.sb`](launcher/grants.sb) |
+| **The harness** — DENY/ALLOW suites, baseline + diff workflow | [`TESTING.md`](TESTING.md) |
 | **What was exposed** and how it was found (F1–F13) | [`FINDINGS.md`](FINDINGS.md) |
 | **What was actually changed**, step by step | [`STEP-01`](STEP-01-agent-github-identity.md) → [`STEP-06`](STEP-06-personal-gh-config.md) |
 | Raw evidence, line numbers, reproduction commands | [`EVIDENCE.md`](EVIDENCE.md) |

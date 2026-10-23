@@ -1,0 +1,156 @@
+;; ---------------------------------------------------------------------------
+;; grants.sb — local hardening grants, appended AFTER the generated base policy.
+;;
+;; Part of: pi-sandbox-hardening (see README.md)
+;;
+;; This file is concatenated onto agent.sb by launcher/run-sandboxed.sh. Because
+;; SBPL is LAST-MATCH-WINS, a deny placed here overrides any broad allow that the
+;; generated base policy contains. That property is the foundation of every block
+;; below: we never edit the generated policy, we only append.
+;;
+;; PRINCIPLE: no broad `file-read*` on file CONTENTS. Only targeted path
+;; resolution (file-read-metadata) where a tool genuinely needs it. Deny-by-default
+;; is preserved.
+;;
+;; NOTE ON PORTABILITY: these rules use (string-append HOME_DIR "/...") rather
+;; than hard-coded paths, so the file works for any user. HOME_DIR is defined by
+;; the generated base policy. Verified: SBPL accepts (string-append ...) inside
+;; both `literal` and `regex` filters.
+;;
+;; NOTE: agent.sb already defines HOME_DIR; do not redefine it here.
+;; ---------------------------------------------------------------------------
+
+;; ---------------------------------------------------------------------------
+;; Path resolution (metadata only) on the home structure.
+;; ONLY file-read-metadata — never file contents (file-read-data), never writes.
+;; Needed so realpath/stat can resolve the path levels /, /Users, $HOME.
+;; Without it, tools fail with EPERM while resolving a project's parent dir.
+;;
+;; The base policy defines HOME_DIR plus home-literal / home-subpath / home-prefix
+;; helpers; those are used below rather than repeating the home path.
+;; ---------------------------------------------------------------------------
+(allow file-read-metadata
+    (literal "/")
+    (literal "/Users")
+    (home-literal "")
+)
+
+;; ---------------------------------------------------------------------------
+;; Git base: allow path resolution (metadata) under the user's git root.
+;; Covers ONLY resolution — no file contents, no writes.
+;; Fixes: realpath EPERM on a project folder's parent.
+;; ---------------------------------------------------------------------------
+(allow file-read-metadata
+    (home-subpath "/git")
+)
+
+;; `~/.Library` traversal for tools that stat it before scoping further.
+(allow file-read-metadata
+    (home-literal "/Library")
+    (literal "/Library")
+)
+
+;; ===========================================================================
+;; The hardening blocks below are each produced by one script in scripts/.
+;; They are marked so the scripts can locate, verify and roll them back.
+;; ===========================================================================
+
+;; >>> pi-sandbox-hardening step-02 (agent identity)
+;; The agent's OWN, keychain-free credentials. Read-only for the token/identity;
+;; read/write only for gh's cache and state directories.
+;;
+;; Why: closes the F12 route where the host's global gitconfig invoked
+;; `gh auth git-credential`, which resolved a token from the login keychain —
+;; an independent path to the keychain that no file deny on ~/.ssh would stop.
+(allow file-read*
+    (home-literal "/.agent/gitconfig")
+    (home-subpath "/.agent/gh")
+)
+(allow file-read* file-write*
+    (home-subpath "/.cache/gh")
+    (home-subpath "/.local/state/gh")
+)
+;; <<< pi-sandbox-hardening step-02
+
+;; >>> pi-sandbox-hardening step-03b (agent keychain)
+;; Give the agent a keychain of its OWN and lock it out of everyone else's.
+;;
+;; Last-match-wins: this MUST come after any broader keychain grant (the base
+;; policy re-opens the keychain), which is why it lives here rather than in the
+;; generated policy.
+;;
+;; Deny the login and System keychain FILES. The SecurityServer IPC alone does
+;; not expose them once the files are denied — measured: with the mach-lookup
+;; allowed but the files denied, 0 login/System items are readable.
+;;
+;; The keychain is all-or-nothing via IPC: `security` needs SecurityServer to
+;; read ANY keychain, so partial path hiding is impossible. The fix is
+;; least-privilege credentials (the agent's own keychain), not concealment.
+(deny file-read* file-write*
+    (home-subpath "/Library/Keychains")
+    (subpath "/Library/Keychains")
+)
+(allow file-read* file-write*
+    (home-literal "/.agent/agent.keychain-db")
+)
+;; Required: `security` cannot read ANY keychain without this IPC.
+(allow mach-lookup
+    (global-name "com.apple.SecurityServer")
+)
+;; The search list lives in com.apple.security.plist (managed by cfprefsd).
+;; Without read access, `security` silently falls back to the built-in
+;; [login, System] list, does NOT see the agent keychain, and every service-only
+;; lookup fails (e.g. `security find-generic-password -s <provider>`) with no
+;; useful error. This file contains ONLY the search list — no secret.
+(allow file-read*
+    (home-literal "/Library/Preferences/com.apple.security.plist")
+)
+;; <<< pi-sandbox-hardening step-03b
+
+;; >>> pi-sandbox-hardening step-06 (personal gh config)
+;; Deny the PERSONAL gh config. The base policy's SCM-CLI grant allows
+;; file-read* AND file-write* on ~/.config/gh. The agent has its own config at
+;; ~/.agent/gh (via GH_CONFIG_DIR), so the personal path is redundant.
+;;
+;; Measured: ~/.config/gh/hosts.yml contains no oauth_token (the real personal
+;; token is in the login keychain, denied by step-03b). So this is a
+;; metadata-and-write-surface reduction rather than a credential fix — the WRITE
+;; grant in particular was a config-tampering surface.
+(deny file-read* file-write*
+    (home-subpath "/.config/gh")
+)
+;; Keep directory traversal for tool discovery (mise, gh and git probe ~/.config).
+(allow file-read-metadata
+    (home-literal "/.config")
+)
+;; <<< pi-sandbox-hardening step-06
+
+;; >>> pi-sandbox-hardening step-04 (no ssh-agent)
+;; The generated base policy re-opens ssh-agent access (the launchd `Listeners`
+;; sockets and ~/.ssh/agent). That let a sandboxed process SIGN WITH ANY KEY
+;; loaded in the user's ssh-agent — i.e. the user's personal keys — without ever
+;; reading the key files. Measured with SSH_AUTH_SOCK forced into the sandbox:
+;; `ssh-add -l` listed the human's key.
+;;
+;; The agent needs no ssh-agent: its git-over-SSH uses an explicit IdentityFile
+;; with IdentitiesOnly=yes and a passphrase-less key. Verified authenticating as
+;; the agent inside the sandbox with these denies in place.
+;;
+;; Step 5 removes SSH_AUTH_SOCK from the environment, so the socket is
+;; unreachable in practice. This deny closes the POLICY layer too, so the
+;; exposure stays closed even if something re-derives the socket path.
+;;
+;; Note: the base policy also scopes a grant to ~/.agent/ssh (the agent's own
+;; socket dir). That is left alone — it is the agent credential area, and the
+;; agent key has no passphrase, so it grants nothing the agent should not have.
+(deny file-read* file-write* file-read-metadata
+    (home-subpath "/.ssh/agent")
+)
+(deny network-outbound
+    (remote unix-socket (path-regex #"^/private/tmp/com\.apple\.launchd\.[^/]+/Listeners$"))
+    (remote unix-socket (path-regex #"^/tmp/com\.apple\.launchd\.[^/]+/Listeners$"))
+    (remote unix-socket (path-regex #"^/private/var/run/com\.apple\.launchd\.[^/]+/Listeners$"))
+    (remote unix-socket (path-regex #"^/var/run/com\.apple\.launchd\.[^/]+/Listeners$"))
+    (remote unix-socket (path-regex (string-append "^" HOME_DIR "/\\.ssh/agent(/.*)?$")))
+)
+;; <<< pi-sandbox-hardening step-04
