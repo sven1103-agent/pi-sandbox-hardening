@@ -12,6 +12,9 @@ measured on a real system, not reasoned about.
 > harness · [`FINDINGS.md`](FINDINGS.md) what was exposed (F1–F13) ·
 > [`STEP-01`](STEP-01-agent-github-identity.md)→[`06`](STEP-06-personal-gh-config.md) what changed
 >
+> **Cloned this repo?** Read [`SETUP-IDENTITY.md`](SETUP-IDENTITY.md) first — without it your
+> agent commits and pushes as *you*.
+>
 > **This is a demonstration, not a template.** It documents one specific configuration. To build
 > your own, use upstream's **[Policy Builder](https://agent-safehouse.dev/policy-builder)**.
 
@@ -132,6 +135,18 @@ Two things worth knowing before you write your own denies:
 If you do hand-edit a generated policy anyway, check whether a newer Safehouse would generate
 something stricter — see [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) and the open question Q8.4.
 
+### If you clone this repo — give your agent its own git identity first
+
+The companion-account setup only works end to end if the agent commits and pushes
+**as itself**. `user.name`, `signingkey` and `sshCommand` live in `.git/config`,
+which is not part of a repository, so a fresh clone silently falls back to *your*
+identity: pushes are denied, and commits are authored by you without warning.
+
+[`SETUP-IDENTITY.md`](SETUP-IDENTITY.md) has the steps — six `git config --local`
+lines plus registering the signing key on the agent's account, written so you
+substitute your own agent's values. It applies equally to any repo where you want
+the agent to act as itself.
+
 ## Where to look
 
 | If you want… | Read |
@@ -143,6 +158,7 @@ something stricter — see [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) and the op
 | **What was actually changed**, step by step | [`STEP-01`](STEP-01-agent-github-identity.md) → [`STEP-06`](STEP-06-personal-gh-config.md) |
 | Raw evidence, line numbers, reproduction commands | [`EVIDENCE.md`](EVIDENCE.md) |
 | What Safehouse does *and does not* promise | [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) |
+| **Cloned this repo?** Your agent needs its own git identity first | [`SETUP-IDENTITY.md`](SETUP-IDENTITY.md) |
 | The original plan, written before implementation *(historical)* | [`MITIGATION_PLAN.md`](MITIGATION_PLAN.md) |
 | Decisions that were open, and how they resolved *(historical)* | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) |
 
