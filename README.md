@@ -34,9 +34,9 @@ flowchart TB
   end
   HOST -. "DENIED" .-x AG
   AG ==>|"its own credentials"| GH(["GitHub"])
-  style HOST fill:#fdf0f0,stroke:#c0392b,stroke-width:2px
-  style AG fill:#eef7ee,stroke:#27ae60,stroke-width:2px
-  style GH fill:#eef2fb,stroke:#4a6fa5,stroke-width:2px
+  style HOST fill:#fdecea,stroke:#b03a2e,stroke-width:2px,color:#7b241c
+  style AG fill:#eafaf1,stroke:#1e8449,stroke-width:2px,color:#145a32
+  style GH fill:#eaf2fb,stroke:#2e5f8a,stroke-width:2px,color:#1b3a5c
 ```
 
 ## The idea
@@ -62,9 +62,9 @@ flowchart LR
   LR["run-sandboxed.sh<br/>the launcher"] --> D
   LR --> SE["sandbox-exec<br/>env -i pi"]
   D -. "passed with -f" .-> SE
-  style SH fill:#eef2fb,stroke:#4a6fa5,stroke-width:2px
-  style GR fill:#eef7ee,stroke:#27ae60,stroke-width:2px
-  style LR fill:#eef7ee,stroke:#27ae60,stroke-width:2px
+  style SH fill:#eaf2fb,stroke:#2e5f8a,stroke-width:2px,color:#1b3a5c
+  style GR fill:#eafaf1,stroke:#1e8449,stroke-width:2px,color:#145a32
+  style LR fill:#eafaf1,stroke:#1e8449,stroke-width:2px,color:#145a32
 ```
 
 ## The launcher is the integration point
