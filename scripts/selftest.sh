@@ -97,9 +97,14 @@ add_host() { # expect name opt cmd  (evaluated unconfined, no sandbox-exec)
 
 add deny "keychain-db(read)"     required 'head -c1 "$HOME/Library/Keychains/login.keychain-db"'
 add deny "keychain-db(write)"    required 'touch "$HOME/Library/Keychains/.pi-selftest-probe"'
-add deny "security:any gh token" required '/usr/bin/security find-generic-password -s gh:github.com -w'
 add deny "security:personal"     required '/usr/bin/security find-generic-password -s gh:github.com -a sven1103 -w'
-add deny "security:bot"          required '/usr/bin/security find-generic-password -s gh:github.com -a sven1103-agent -w'
+# RETIRED (Step 1b): "security:any gh token" (service-only, no account) asserted
+# that NO gh token was reachable. It resolved to whichever item the search list
+# found first, which is now the AGENT's own token in the agent keychain — by
+# design. A blanket deny is no longer true, and keeping it would only train us to
+# ignore the harness. The invariant it stood for is enforced by the two probes
+# below instead: the human's account must stay unreachable, the agent's own must
+# be usable. Re-enable only if the agent's token moves back out of its keychain.
 add deny "ssh-agent(list)"       required '/usr/bin/ssh-add -l'
 # Policy-level: force SSH_AUTH_SOCK back in, so this measures the SBPL deny and
 # not merely step-05's env stripping. Fails if the policy re-opens the socket.
@@ -126,7 +131,11 @@ add allow "workdir(write)"       required 'touch "./.pi-selftest-probe"'
 add allow "agent: pi auth.json"  required 'head -c1 "$HOME/.pi/agent/auth.json"'
 add allow "agent: ssh key"       required 'head -c1 "$HOME/.agent/ssh/github_login_ed25519"'
 add allow "agent: gh config"     optional 'head -c1 "$HOME/.agent/gh/hosts.yml"'
-add allow "agent: gh api(own)"   optional 'head -c1 "$HOME/.agent/gh/hosts.yml" >/dev/null && GH_CONFIG_DIR="$HOME/.agent/gh" /opt/homebrew/bin/gh api user --jq .login'
+# Step 1b: the agent's gh token now lives in the AGENT keychain, so this is an
+# ALLOW — it is the agent's own credential. It moved here from DENY deliberately;
+# see the note above the retired "security:any gh token" probe.
+add allow "agent: gh keychain"   optional '/usr/bin/security find-generic-password -s gh:github.com -a sven1103-agent -w "$HOME/.agent/agent.keychain-db"'
+add allow "agent: gh api(own)"   optional 'GH_CONFIG_DIR="$HOME/.agent/gh" /opt/homebrew/bin/gh api user --jq .login'
 add allow "net: model endpoint"  required "curl -s --max-time 10 -o /dev/null $MODEL_ENDPOINT"
 add allow "net: openrouter"      required 'curl -s --max-time 10 -o /dev/null https://openrouter.ai'
 add allow "net: mcp.vaadin.com"  required 'curl -s --max-time 10 -o /dev/null https://mcp.vaadin.com'
@@ -138,7 +147,11 @@ add allow "net: github https"    required 'git ls-remote https://github.com/euge
 # never produces. A3 = host-scope expectation (allow=present, deny=absent).
 add_host allow "wiring: launcher env"  required 'grep -q GIT_CONFIG_GLOBAL "$HOME/.config/sandbox-exec/run-sandboxed.sh" && grep -q GH_CONFIG_DIR "$HOME/.config/sandbox-exec/run-sandboxed.sh" || { echo "launcher not patched: missing GH_CONFIG_DIR/GIT_CONFIG_GLOBAL"; exit 1; }'
 add_host allow "wiring: agent gitconfig" required 'test -f "$HOME/.agent/gitconfig" || { echo "No such file or directory: $HOME/.agent/gitconfig"; exit 1; }'
-add_host allow "wiring: agent gh token"  required 'test -f "$HOME/.agent/gh/hosts.yml"'
+# Step 1b moved the token into the agent keychain, so this no longer stands for the
+# token. Renamed, and now asserts the config file exists AND carries no plaintext
+# token — i.e. it guards the migration rather than silently passing while a
+# plaintext token comes back.
+add_host allow "wiring: agent gh config"  required 'test -f "$HOME/.agent/gh/hosts.yml" || { echo "missing: $HOME/.agent/gh/hosts.yml"; exit 1; }; grep -qE "^[[:space:]]*oauth_token:" "$HOME/.agent/gh/hosts.yml" && { echo "plaintext oauth_token is back in hosts.yml (step 1b regressed)"; exit 1; }; exit 0'
 
 # --- classification ---------------------------------------------------------
 
@@ -303,6 +316,18 @@ if [[ "$MODE" == diff ]]; then
     awk -F'\t' -v n="$name" '$2==n{f=1} END{exit !f}' "$SNAPSHOT" \
       || { printf 'NEW      %-26s %s/%s\n' "$name" "$st" "$vd"; changed=1; }
   done < <(snapshot_lines)
+  # REMOVED checks: in the baseline but no longer run. Without this, deleting a
+  # probe is invisible — the suite can only ever look "cleaner". That is exactly
+  # how a guard disappears unnoticed (retiring "security:any gh token" for Step 1b
+  # must be a deliberate, visible act, not a silent gap).
+  while IFS=$'\t' read -r exp name opt st vd; do
+    [[ "$exp" == \#* || -z "$exp" ]] && continue
+    found=0
+    for i in "${!names[@]}"; do
+      [[ "${names[$i]}" == "$name" ]] && { found=1; break; }
+    done
+    (( found )) || { printf 'REMOVED  %-26s (was %s/%s)\n' "$name" "$st" "$vd"; changed=1; }
+  done < "$SNAPSHOT"
   (( changed )) || echo "no changes vs $SNAPSHOT"
   # still surface hard failures
   (( failures )) && { echo "FAIL: $(failing_list)"; exit 1; }

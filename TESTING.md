@@ -102,8 +102,14 @@ scripts/selftest.sh --record baseline-before.tsv   # capture "before"
 scripts/selftest.sh --diff baseline-before.tsv     # what actually changed
 ```
 
-`--diff` prints `CHANGED <check> <old-state>/<old-verdict> -> <new>/<new>` and
-`NEW` for checks absent from the baseline. A staged migration therefore reads
+`--diff` prints `CHANGED <check> <old-state>/<old-verdict> -> <new>/<new>`,
+`NEW` for checks absent from the baseline, and `REMOVED` for checks present in the
+baseline but no longer run.
+
+`REMOVED` matters more than it looks. Without it, *deleting* a probe is invisible —
+the suite could only ever appear to get cleaner, never to lose a guard. Retiring a
+check is sometimes correct (see the Step 1b re-scoping below), which is exactly why
+it must be a visible, reviewable line in the diff rather than a silent gap. A staged migration therefore reads
 cleanly, e.g. the keychain-free GitHub step should show:
 
 ```

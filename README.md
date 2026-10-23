@@ -163,7 +163,7 @@ Recording these matters more than the successes:
 | Step | What it did |
 |---|---|
 | [01](STEP-01-agent-github-identity.md) | Agent's own GitHub identity (SSH key + token) |
-| [01b](STEP-01b-gh-token-in-agent-keychain.md) | Move that token from plaintext into the agent keychain *(script ready, not applied)* |
+| [01b](STEP-01b-gh-token-in-agent-keychain.md) | Move that token from plaintext into the agent keychain |
 | [02](STEP-02-wire-agent-identity.md) | Wire it in: `GH_CONFIG_DIR`, `GIT_CONFIG_*`; close the gitconfig→keychain route |
 | [03](STEP-03-remove-keychain-grant.md) | Remove the keychain grant (superseded by 03b) |
 | [03b](STEP-03b-agent-keychain.md) | **Dedicated agent keychain**; deny login + System |

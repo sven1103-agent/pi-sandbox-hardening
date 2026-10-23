@@ -56,7 +56,7 @@ for a in "$@"; do
 done
 
 say() { printf '%s\n' "$*"; }
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }   # pre-backup: nothing to undo yet
 
 # --- guards -----------------------------------------------------------------
 
@@ -124,20 +124,36 @@ fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BAK="$HOSTS.bak-$STAMP"
-cp -p "$HOSTS" "$BAK"
+
+# Keep the original in memory so rollback can restore it exactly.
+# It is deliberately NOT written to disk: a plaintext copy of the token on disk is
+# the very exposure this step removes, and at a path no cleanup step knows about.
+orig_hosts="$(cat "$HOSTS")"
+
+# The on-disk backup is REDACTED. It keeps the file's shape so a diff still shows
+# what changed, without preserving the secret. The token stays recoverable from
+# the agent keychain (and, unless --purge-login-copy is used, the login keychain),
+# so this is not a loss of recovery ability.
+sed 's/^\([[:space:]]*oauth_token:[[:space:]]*\).*/\1<REDACTED-BY-STEP-01b>/' "$HOSTS" > "$BAK"
+chmod 600 "$BAK"
 say
-say "backup: $BAK"
+say "backup (redacted): $BAK"
 
 HAD_KC_ITEM=0
 security find-generic-password -s "$SERVICE" -a "$account" "$AGENT_KC" >/dev/null 2>&1 && HAD_KC_ITEM=1
 
 rollback() {
   printf '\nrolling back...\n' >&2
-  cp -p "$BAK" "$HOSTS" 2>/dev/null || true
+  # Restore from memory (exact original), not from the redacted backup.
+  umask 077
+  printf '%s\n' "$orig_hosts" > "$HOSTS" 2>/dev/null || cp -p "$BAK" "$HOSTS" 2>/dev/null || true
   [[ "$HAD_KC_ITEM" == 0 ]] && \
     security delete-generic-password -s "$SERVICE" -a "$account" "$AGENT_KC" >/dev/null 2>&1 || true
-  printf 'restored %s\n' "$HOSTS" >&2
+  printf 'restored %s (token re-inserted; on-disk copy is redacted)\n' "$HOSTS" >&2
 }
+
+# 'die' calls exit, which does NOT raise ERR, so wire rollback in explicitly.
+die() { printf 'ERROR: %s\n' "$*" >&2; rollback; exit 1; }
 trap 'rollback' ERR
 
 # NOTE: `-w <value>` is briefly visible in `ps`. The interactive prompt form
@@ -209,7 +225,10 @@ if [[ "$PURGE" == 1 ]]; then
 fi
 
 trap - ERR
-unset tok b64 stored raw
+unset tok b64 stored raw orig_hosts
 
 say
-say "done. Rollback if needed:  cp -p $BAK $HOSTS"
+say "done."
+say "Note: the on-disk backup $BAK is REDACTED by design (no token in it)."
+say "To roll back, re-run with the token, or copy the value back from the agent"
+say "keychain:  security find-generic-password -s $SERVICE -a $account -w $AGENT_KC"

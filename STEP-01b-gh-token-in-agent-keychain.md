@@ -1,6 +1,7 @@
 # Step 1b — Move the agent's gh token into its own keychain
 
-**Status:** script ready, **not yet applied** (needs an unconfined run).
+**Status: APPLIED and verified.** Ran `scripts/migrate-gh-token-to-keychain.sh` on
+2026-10-23. Token now lives in the agent keychain; `hosts.yml` carries no token.
 **Depends on:** Step 1 (agent gh token), Step 3b (agent keychain).
 **Closes:** the last plaintext secret belonging to the agent's *own* credentials.
 
@@ -132,11 +133,60 @@ would only teach us to ignore the harness.
 The invariant is unchanged and still holds: **the personal token (`-a
 sven1103`) must be unreachable, the agent's own must work.**
 
+## Applied — measured result
+
+```
+token at rest              : agent keychain (gh:github.com / sven1103-agent)
+~/.agent/gh/hosts.yml      : 0 oauth_token lines (metadata only)
+agent keychain items       : 4  (3 provider keys + gh token)
+plaintext copies on disk   : 0
+
+sandboxed gh api user      : sven1103-agent
+sandboxed gh source        : (keyring)          <- the keychain, not a file
+sandboxed scopes           : gist, read:org, repo, workflow
+unconfined gh api user     : sven1103-agent
+unconfined gh source       : (keyring)
+harness                    : PASS (DENY 16/16, ALLOW 14/14)
+```
+
+### A flaw in the first version of the script (fixed)
+
+The original wrote the backup with `cp -p "$HOSTS" "$BAK"` — preserving the
+**plaintext token** on disk at a path no cleanup step knows about. That recreates
+the exact exposure the step exists to remove, so the step would have *looked*
+clean while leaving a plaintext copy behind.
+
+Fixed: the on-disk backup is now **redacted** (token replaced with a placeholder,
+file shape preserved), and rollback restores the original from memory rather than
+from the backup file. The existing plaintext backup was redacted in place, and the
+tree was swept to confirm no copy of the token remains under `~/.agent`.
+
+Worth generalising: **a backup is a copy of the secret.** Any step that migrates a
+credential must decide what its backup contains.
+
+### The keychain token wins over a file token
+
+Tested, because it decides whether a stale `hosts.yml` is dangerous: with a bogus
+`oauth_token` inserted into `hosts.yml` (well-formed YAML), sandboxed `gh` still
+authenticated as `sven1103-agent` — the keychain value took precedence. So leaving
+a stale file token behind would not silently override the keychain. (An earlier
+apparent failure of this test was malformed YAML from a crude append, not
+precedence — worth noting because the wrong conclusion was the alarming one.)
+
 ## Rollback
 
+The on-disk backup is **redacted by design** (see above), so it cannot restore the
+secret by itself. Two options:
+
 ```bash
-cp -p ~/.agent/gh/hosts.yml.bak-<stamp> ~/.agent/gh/hosts.yml
+# a) copy the value back out of the keychain
+TOK="$(security find-generic-password -s gh:github.com -a sven1103-agent -w \
+        ~/.agent/agent.keychain-db | sed 's/^go-keyring-base64://' | base64 -d)"
+# insert it into ~/.agent/gh/hosts.yml as an oauth_token line, then:
 security delete-generic-password -s gh:github.com -a sven1103-agent ~/.agent/agent.keychain-db
+
+# b) or simply re-run the migration in reverse:
+#    gh auth login --with-token --insecure-storage   (with GH_CONFIG_DIR set)
 ```
 
 The script also rolls back automatically if any verification step fails.
@@ -146,5 +196,10 @@ The script also rolls back automatically if any verification step fails.
 The **personal** `gh:github.com` token still sits in the login keychain. It is
 unreachable from the sandbox (Step 3b denies the keychain files), so it is not a
 sandbox problem — but an unconfined process running as you can still read it.
-`--purge-login-copy` removes the *agent* copy from the login keychain; removing
-the *personal* one is a rotation decision, not a sandbox one.
+
+The *agent's* token also still exists in the login keychain (same value); this is
+what the unconfined `gh` resolved through before the migration, and it is harmless
+residue. `--purge-login-copy` removes it. That was **not** run: it is the step most
+likely to surprise the user's own shell, so it is deliberately left as a separate,
+explicit action. Removing the *personal* token is a rotation decision, not a
+sandbox one.
