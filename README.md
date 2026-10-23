@@ -11,6 +11,9 @@ measured on a real system, not reasoned about.
 > [`launcher/grants.sb`](launcher/grants.sb) the policy fragment · [`TESTING.md`](TESTING.md) the
 > harness · [`FINDINGS.md`](FINDINGS.md) what was exposed (F1–F13) ·
 > [`STEP-01`](STEP-01-agent-github-identity.md)→[`06`](STEP-06-personal-gh-config.md) what changed
+>
+> **This is a demonstration, not a template.** It documents one specific configuration. To build
+> your own, use upstream's **[Policy Builder](https://agent-safehouse.dev/policy-builder)**.
 
 ```mermaid
 flowchart TB
@@ -43,8 +46,9 @@ Any prompt injection or leaked token is then effectively your credential. Two th
 2. **Verify with a DENY/ALLOW harness**, recording a baseline before every change.
 
 **[Agent Safehouse](https://agent-safehouse.dev)** (Apache-2.0) composes the deny-by-default
-macOS `sandbox-exec` policy. This repo is the **launcher and local policy configuration** layered
-on top of it — which is where every step actually lands — plus the measurements, and the mistakes.
+macOS `sandbox-exec` policy. This repo is a **worked example** of a launcher and local policy
+layered on top of it — which is where every step actually lands — plus the measurements, and the
+mistakes.
 
 ```mermaid
 flowchart LR
@@ -77,14 +81,38 @@ hardening works at all: it is appended **after** the generated policy, and SBPL 
 **last-match-wins**, so a deny here overrides any broad allow the base policy contains. Every step
 landed there rather than in the generated file, which is regenerated on upgrade.
 
-The base `agent.sb` (~48 KB, host-specific) is **not** vendored — generate your own:
+The base `agent.sb` (~48 KB, host-specific) is **not** vendored — generate your own.
 
-```bash
-safehouse --stdout > ~/.config/sandbox-exec/agent.sb
-```
+## Build your own — don't copy ours
 
-Both files are genericised: they use `HOME_DIR` and the `home-literal` / `home-subpath` helpers
-from the generated policy, so they carry **no absolute user paths**.
+This repo's fragment is **one configuration**, not a baseline. It encodes choices specific to one
+setup (a companion GitHub account, a dedicated keychain, an `env -i` allowlist) and carries the
+trade-offs that come with them. Copying it wholesale would import assumptions that may not hold
+for you.
+
+Upstream provides three supported ways to generate a policy for *your* machine:
+
+| Approach | Best for |
+|---|---|
+| **[Policy Builder](https://agent-safehouse.dev/policy-builder)** — interactive wizard | Most people. Pick agents, capabilities and filesystem access in plain language; no hand-editing. |
+| **[`llm-instructions.txt`](https://agent-safehouse.dev/llm-instructions.txt)** — a prompt for an LLM | Generating a least-privilege profile tuned to your toolchain. |
+| **[Getting Started](https://agent-safehouse.dev/docs/getting-started)** — the CLI | Scripting and CI: `safehouse --stdout > agent.sb` |
+
+A sensible path: **start from an upstream-generated policy**, verify what it grants, then add only
+the specific denies your threat model needs. Use our `grants.sb` as a worked example of *which*
+rules close *which* holes — the comments explain the reasoning, which is the reusable part.
+
+Two things worth knowing before you write your own denies:
+
+- **Append, don't edit.** Safehouse regenerates the base policy on upgrade, so put your rules in
+  an `--append-profile` fragment. SBPL is last-match-wins, so an appended deny overrides a broad
+  allow above it. That property is what makes this approach safe.
+- **Environment variables are not policy.** No SBPL rule can constrain them; `sandbox-exec … env
+  VAR=x app` only *adds* variables. If a secret is in the environment, it reaches the agent
+  regardless of the policy. Sanitize the environment separately (Step 5).
+
+If you do hand-edit a generated policy anyway, check whether a newer Safehouse would generate
+something stricter — see [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) and the open question Q8.4.
 
 ## Where to look
 

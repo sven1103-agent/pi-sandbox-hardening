@@ -3,6 +3,14 @@
 ;;
 ;; Part of: pi-sandbox-hardening (see README.md)
 ;;
+;; *** DEMONSTRATION, NOT A TEMPLATE ***
+;; This is ONE configuration, published to show which rules close which holes and
+;; why. It is not a recommended baseline and should not be copied wholesale: it
+;; encodes choices specific to one setup. To generate a policy for your own
+;; machine, use upstream's Policy Builder (https://agent-safehouse.dev/policy-builder)
+;; or start from a generated policy and add only the denies you need.
+;; The reusable part is the reasoning in the comments, not the rules.
+;;
 ;; This file is concatenated onto agent.sb by launcher/run-sandboxed.sh. Because
 ;; SBPL is LAST-MATCH-WINS, a deny placed here overrides any broad allow that the
 ;; generated base policy contains. That property is the foundation of every block
