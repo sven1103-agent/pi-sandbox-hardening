@@ -12,3 +12,16 @@ probe-output*.txt
 .env
 .env.*
 .pi-selftest-probe
+
+# Editor / IDE state. `workspace.xml` in particular records local absolute paths,
+# recently-opened sibling repos and run configurations — none of which belong in a
+# public repo. (`git add -A` swept these in once; that is why they are listed.)
+.idea/
+*.iml
+.vscode/
+
+# Ad-hoc screenshots dropped in the repo root. Rendered figures used as evidence
+# belong in docs/ (which is tracked); loose ones here are scratch.
+/img*.png
+/img*.jpg
+/screenshot*.png

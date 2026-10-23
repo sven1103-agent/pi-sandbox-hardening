@@ -159,6 +159,7 @@ the agent to act as itself.
 | Raw evidence, line numbers, reproduction commands | [`EVIDENCE.md`](EVIDENCE.md) |
 | What Safehouse does *and does not* promise | [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) |
 | **Cloned this repo?** Your agent needs its own git identity first | [`SETUP-IDENTITY.md`](SETUP-IDENTITY.md) |
+| Rendered before/after evidence for a figure fix | [`docs/`](docs/README.md) |
 | The original plan, written before implementation *(historical)* | [`MITIGATION_PLAN.md`](MITIGATION_PLAN.md) |
 | Decisions that were open, and how they resolved *(historical)* | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) |
 
