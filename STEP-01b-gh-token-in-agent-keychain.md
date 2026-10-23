@@ -7,11 +7,16 @@
 
 ## Why this is now the right thing to do
 
-Step 1 deliberately stored the agent token as a **file**:
+Step 1 originally stored the agent token as a **file**. Its section was titled
+*"Install it as a FILE, not in the keychain"*, and it read:
 
 > `gh` stores tokens in the macOS keychain by default — which is exactly what we
 > are trying to close. Use `--insecure-storage` so the token lives in a file.
-> — [`STEP-01-agent-github-identity.md`](STEP-01-agent-github-identity.md)
+> — [`STEP-01-agent-github-identity.md`](STEP-01-agent-github-identity.md), as written at the time
+
+That wording has since been corrected in Step 1: the file is no longer the
+destination, the agent keychain is. The quote above is preserved because it is the
+reasoning this step exists — not because it is still the advice.
 
 That was correct **at the time**: the only keychain available was the login
 keychain, which we were trying to close. But Step 3b later gave the agent **its
