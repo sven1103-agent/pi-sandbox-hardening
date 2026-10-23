@@ -1,8 +1,20 @@
-# Step 3 — Remove the keychain grant (the first real exposure removal)
+# Step 3 — Remove the keychain grant (SUPERSEDED — do not run)
 
-**Status:** ready to run · **Reversible:** yes (backup + restore documented)
-**Fixes:** F2, F3 (5 of the 9 DENY leaks)
-**Depends on:** Steps 1–2 verified (agent has a working keychain-free identity)
+> **Status: SUPERSEDED — not applied. Do not run this.**
+>
+> This was the original Step 3: remove the keychain grant outright. It was written
+> up and then **rejected during implementation**, because removing keychain access
+> broke every model provider — `auth.json` resolves keys via
+> `security find-generic-password`, so the agent lost its own credentials too.
+>
+> The replacement is **[`STEP-03b-agent-keychain.md`](STEP-03b-agent-keychain.md)**:
+> give the agent a **dedicated keychain** instead of removing keychain access.
+> `scripts/apply-step-03.sh` still exists for reference, but running it now would
+> break the working configuration. No `step-03` block exists in `grants.sb`;
+> step 3's outcome landed as the step-03b deny.
+>
+> **Would have fixed:** F2, F3 (5 of the 9 DENY leaks) — ultimately fixed by Step 3b.
+> **Depended on:** Steps 1–2 verified (agent has a working keychain-free identity).
 
 ## What this changes
 
@@ -49,7 +61,7 @@ gh api user --jq .login        # must still print sven1103-agent
 If that fails with `Bad credentials` or an auth prompt, the fallback broke —
 restore immediately (see Rollback).
 
-## Do this (unconfined terminal)
+## Procedure (historical — unconfined terminal)
 
 ```bash
 cd ~/.config/sandbox-exec
@@ -167,7 +179,7 @@ Nothing else is affected.
 - **Not a "narrower" option.** Once `SecurityServer` mach-lookup is granted, the
   agent can read *every* login-keychain item (securityd runs outside the sandbox
   and a file-level deny does not stop it). It is all-or-nothing; removing it is
-  the only safe setting. See `UPSTREAM_STANCE.md` §3.
+  the only safe setting. See [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) §3.
 - **`gh` may print a warning** about keyring access in some flows. If it errors
   instead of falling back, that is the regression — roll back and report.
 - **Other tools that want the keychain will break** by design (e.g. any CLI using

@@ -11,7 +11,7 @@ Step 1 deliberately stored the agent token as a **file**:
 
 > `gh` stores tokens in the macOS keychain by default — which is exactly what we
 > are trying to close. Use `--insecure-storage` so the token lives in a file.
-> — `STEP-01-agent-github-identity.md`
+> — [`STEP-01-agent-github-identity.md`](STEP-01-agent-github-identity.md)
 
 That was correct **at the time**: the only keychain available was the login
 keychain, which we were trying to close. But Step 3b later gave the agent **its

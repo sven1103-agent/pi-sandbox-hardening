@@ -1,6 +1,7 @@
 # Step 1 — Give the agent its own GitHub identity (SSH for git, token for the API)
 
-**Status:** ready to run (user, unconfined) · **Reversible:** yes (additive only)
+**Status: APPLIED** (agent identity in place; `~/.agent/ssh/github_login_ed25519` exists).
+**Reversible:** yes (additive only)
 **Toward:** F3 (personal token exposure), F7 (env inheritance), and the
 dependency for P2/P3 (removing keychain + ssh-agent must not break GitHub work).
 
@@ -52,7 +53,7 @@ Fine-grained PAT, owned by / authorised for **`sven1103-agent`**:
   secrets — the single most dangerous thing the old token had (F3).
 - **Expiration:** set one (e.g. 90 days).
 
-## Do this (unconfined terminal — Terminal.app, NOT inside pi)
+## Procedure (historical — unconfined terminal, not inside pi)
 
 ### 1. Create the PAT (browser)
 
@@ -86,7 +87,7 @@ chmod 600 "$HOME/.agent/gh/hosts.yml"
 > **Superseded by Step 1b.** This file was the right call *before* the agent had
 > a keychain of its own. Step 3b created one, so the token can now live there in
 > encrypted form instead of plaintext. See
-> `STEP-01b-gh-token-in-agent-keychain.md`.
+> [`STEP-01b-gh-token-in-agent-keychain.md`](STEP-01b-gh-token-in-agent-keychain.md).
 
 ### 3. Verify identity and scope
 
@@ -148,9 +149,8 @@ Nothing else was modified. (Revoke the PAT at github.com if retiring it.)
 - Git identity (author/email) is handled separately by a `~/.agent/gitconfig`, so
   the agent doesn't commit under `you@example.com`. That is
   Step 2's wiring; it needs no new credential.
-- GitHub noreply address for the bot: the agent should commit as
-  `sven1103-agent` with a `<id>+sven1103-agent@users.noreply.github.com` address.
-  Get the numeric id with `gh api user --jq .id` (under the agent config) when
-  wiring Step 2.
-- Say "step 1 done" once the exit criteria pass; Step 2 grants `~/.agent/gh` and
-  sets `GH_CONFIG_DIR` for agent sessions.
+- The agent's GitHub noreply address is the bot's: commits are authored as
+  `sven1103-agent` with an `<id>+sven1103-agent@users.noreply.github.com` address.
+  The numeric id comes from `gh api user --jq .id` under the agent config.
+- Step 2 wires this identity into agent sessions: it grants `~/.agent/gh` and
+  sets `GH_CONFIG_DIR`.

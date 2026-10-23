@@ -1,11 +1,20 @@
-# Evidence — raw excerpts and reproduction
+# Evidence — raw excerpts and reproduction (historical)
 
-Line numbers are from the versions present at investigation time. Re-check with
-`grep -n` before editing; the files may have moved.
+> **Status: historical snapshot.** These excerpts are as-captured during the
+> investigation. Several have since been **superseded** by the hardening steps —
+> where that is true, the excerpt below says so explicitly. Line numbers refer to
+> the files as they were at the time; re-check with `grep -n` before relying on
+> one. For the *current* behaviour, read [`TESTING.md`](TESTING.md) (the harness)
+> and [`launcher/`](launcher/) (the live configuration); not this file.
 
 ---
 
 ## E1 — Launch path
+
+> **SUPERSEDED.** The `~/.zshrc` alias still exists, but the launcher excerpt below
+> (with bare `env TMUX=…`) is the *pre-hardening* version. Step 5 replaced it with
+> `env -i` plus an explicit allowlist. The live file is
+> [`launcher/run-sandboxed.sh`](launcher/run-sandboxed.sh).
 
 `~/.zshrc:142-146`
 ```zsh
@@ -30,6 +39,11 @@ placeholder replaced) → dynamic workdir grant → `grants.sb` → `~/.safehous
 ---
 
 ## E2 — The keychain hole  (F2)
+
+> **SUPERSEDED.** This is the block that *granted* keychain access. It no longer
+> exists: Step 3b replaced it with a **deny** on `~/Library/Keychains` plus an allow
+> for the agent's own keychain. See [`STEP-03b-agent-keychain.md`](STEP-03b-agent-keychain.md)
+> and [`launcher/grants.sb`](launcher/grants.sb).
 
 `~/.config/sandbox-exec/grants.sb`, full block, lines 31-58:
 ```scheme
@@ -235,7 +249,16 @@ git config --global --get credential.helper   # gh   <-- ambient auth (P9)
 
 ---
 
-## E10 — Helper scripts to add
+## E10 — Helper scripts (proposal → outcome)
+
+> **PROPOSAL ONLY, largely superseded.** The `selftest.sh` here was a sketch: one
+> positional policy, six checks. What shipped is different — a two-suite DENY/ALLOW
+> harness with `--record`/`--diff`/`--json`, baselines and negative controls (31
+> checks). `build-policy.sh` and `probe.sh` were built as sketched; **`agent-tmux.sh`
+> was never written** (P1.1 remains open). For the real harness see
+> [`TESTING.md`](TESTING.md).
+>
+> The design constraints stated below were kept, and are the part worth reading.
 
 Suggested layout for this repo:
 

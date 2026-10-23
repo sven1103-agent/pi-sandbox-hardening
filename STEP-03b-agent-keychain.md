@@ -1,6 +1,7 @@
 # Step 3 (REVISED) — Dedicated agent keychain with prompted unlock
 
-**Status:** ready to implement · **Reversible:** yes
+**Status: APPLIED and verified** (commit `b418ff4`; confirmed in a live sandboxed session).
+**Reversible:** yes
 **Supersedes:** the "remove keychain access entirely" version of Step 3
 **Fixes:** F2/F3 (login + System keychain unreachable) **while keeping all
 providers working**
@@ -377,6 +378,11 @@ isolation:  personal gh token blocked · any gh token blocked
             items visible via dump-keychain: 3   (was 381 unconfined)
 ```
 
+> **Numbers as measured at the time of this step.** Later, Step 1b moved the
+> agent's `gh` token into this keychain, so the current figures are **4** items
+> (was **385** unconfined). The README carries the current numbers; this block is
+> the historical snapshot and is left as measured.
+
 `selftest.sh` DENY suite: all keychain checks `DENIED`/`FAILED` (no LEAK).
 ALLOW suite: 0 BROKEN.
 
@@ -454,5 +460,5 @@ parent's confinement, which is correct — but it means:
 - pi started via the sandboxed launcher → all subagents sandboxed
 - pi started via `pi-native` or bare `pi` → **every subagent unconfined**
 
-Worth verifying explicitly (see `TESTING.md`), because delegation must not become
+Worth verifying explicitly (see [`TESTING.md`](TESTING.md)), because delegation must not become
 a bypass.

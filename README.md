@@ -78,8 +78,26 @@ It is small, and it is where the hardening lives — read it first if you read o
 
 [`launcher/grants.sb`](launcher/grants.sb) is the local policy fragment, and the reason the
 hardening works at all: it is appended **after** the generated policy, and SBPL is
-**last-match-wins**, so a deny here overrides any broad allow the base policy contains. Every step
-landed there rather than in the generated file, which is regenerated on upgrade.
+**last-match-wins**, so a deny here overrides any broad allow the base policy contains.
+The policy steps (02, 03b, 04, 06) all landed there rather than in the generated file,
+which is regenerated on upgrade. Steps 01/01b created credentials, and Step 05 is the
+launcher's `env -i` — neither is a policy rule, so they live outside this fragment.
+
+**These two files are installed, not copies.** `launcher/` in this repo is the single
+source of truth for the running configuration:
+
+```bash
+scripts/install-launcher.sh --dry-run   # show what differs
+scripts/install-launcher.sh             # install, then verify (rolls back on failure)
+```
+
+The installer backs up the current files, copies `launcher/run-sandboxed.sh` and
+`launcher/grants.sb` into `~/.config/sandbox-exec/`, then *executes* the launcher
+against a stub `sandbox-exec` to prove it still starts the agent with the intended
+environment — and restores the backups if any check fails. Running it twice is a
+no-op. This exists because the repo copy and the live copy had already drifted once:
+nothing installed or diffed them, so the README and `TESTING.md` came to point at
+two different programs.
 
 The base `agent.sb` (~48 KB, host-specific) is **not** vendored — generate your own.
 
@@ -119,12 +137,14 @@ something stricter — see [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) and the op
 | If you want… | Read |
 |---|---|
 | **The launcher** — composes the policy, unlocks, sanitizes, execs | **[`launcher/run-sandboxed.sh`](launcher/run-sandboxed.sh)** |
-| **The policy fragment** where every step landed | [`launcher/grants.sb`](launcher/grants.sb) |
+| **The policy fragment** — where the policy steps landed (02, 03b, 04, 06) | [`launcher/grants.sb`](launcher/grants.sb) |
 | **The harness** — DENY/ALLOW suites, baseline + diff workflow | [`TESTING.md`](TESTING.md) |
 | **What was exposed** and how it was found (F1–F13) | [`FINDINGS.md`](FINDINGS.md) |
 | **What was actually changed**, step by step | [`STEP-01`](STEP-01-agent-github-identity.md) → [`STEP-06`](STEP-06-personal-gh-config.md) |
 | Raw evidence, line numbers, reproduction commands | [`EVIDENCE.md`](EVIDENCE.md) |
 | What Safehouse does *and does not* promise | [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) |
+| The original plan, written before implementation *(historical)* | [`MITIGATION_PLAN.md`](MITIGATION_PLAN.md) |
+| Decisions that were open, and how they resolved *(historical)* | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) |
 
 Each `scripts/apply-step-*.sh` is idempotent, backs up first, refuses to run from inside the
 sandbox, and verifies functionally — rolling back automatically on failure.

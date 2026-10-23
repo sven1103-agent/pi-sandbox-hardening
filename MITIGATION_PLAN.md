@@ -8,14 +8,14 @@
 >
 > | Plan item | What actually happened |
 > |---|---|
-> | P2 — remove the keychain hole | Superseded by **Step 3b**: rather than removing keychain access (which broke every provider, since `auth.json` resolves keys via `security find-generic-password`), the agent got its **own** keychain. See `STEP-03b-agent-keychain.md`. |
-> | P3 — remove ssh-agent access | Implemented as **Step 4** (`STEP-04-ssh-agent-deny.md`), plus **Step 5** which removes `SSH_AUTH_SOCK` from the environment. |
-> | P4 — stop environment inheritance | Implemented as **Step 5** (`STEP-05-env-sanitization.md`). |
+> | P2 — remove the keychain hole | Superseded by **Step 3b**: rather than removing keychain access (which broke every provider, since `auth.json` resolves keys via `security find-generic-password`), the agent got its **own** keychain. See [`STEP-03b-agent-keychain.md`](STEP-03b-agent-keychain.md). |
+> | P3 — remove ssh-agent access | Implemented as **Step 4** ([`STEP-04-ssh-agent-deny.md`](STEP-04-ssh-agent-deny.md)), plus **Step 5** which removes `SSH_AUTH_SOCK` from the environment. |
+> | P4 — stop environment inheritance | Implemented as **Step 5** ([`STEP-05-env-sanitization.md`](STEP-05-env-sanitization.md)). |
 > | P5–P8, P10, P11 | Not done. `P5` (retire the personal token) is now **unnecessary**: Step 3b denies the login keychain entirely. P8 (egress) and P11 (stop forking upstream) remain open. |
 > | — | **Added:** Step 1/2 (agent identity), Step 6 (personal `gh` config deny). |
 >
 > Checkbox counts below are therefore misleading and are left as-written.
-> See `README.md` for the actual outcome and `STEP-*.md` for the implementations.
+> See [`README.md`](README.md) for the actual outcome and `STEP-*.md` for the implementations.
 
 Ordered so that **irreversible/account-level actions are separated from local
 policy edits**. Do the account hygiene (P5/P7) first if there is any chance the
@@ -29,7 +29,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 
 - [ ] **P0.1** Confirm assumptions still hold:
       `gh auth status`, `ls -la ~/.config/sandbox-exec/`,
-      `./scripts/selftest.sh` (see `EVIDENCE.md`).
+      `./scripts/selftest.sh` (see [`EVIDENCE.md`](EVIDENCE.md)).
 - [ ] **P0.2** Back up policy files before touching anything:
       ```bash
       cd ~/.config/sandbox-exec
@@ -87,7 +87,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 > `55-integrations-optional/keychain.sb`, except upstream's docs advise making it
 > **read-only** while the local copy grants `file-write*`. Upstream treats this as
 > by-design, so there is no upstream fix to wait for — it is a local deviation.
-> See `UPSTREAM_STANCE.md` §3.
+> See [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) §3.
 >
 > Note also: removing the keychain grant does **not** hide the `gh` token if it is
 > stored in `~/.config/gh/hosts.yml`, because core `scm-clis.sb` grants that path
@@ -123,7 +123,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 > profile and instead bakes in the optional `--enable=ssh` allows. So this task is
 > best framed as **reverting a local deviation to upstream's documented default**
 > (`default-assumptions`: ssh agent sockets denied "unless `ssh` is enabled").
-> See `UPSTREAM_STANCE.md` §2.
+> See [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) §2.
 - [ ] **P3.1** In `agent.sb`, delete lines ~787–809:
       - `(allow file-read-metadata (home-literal "/.ssh/agent"))`
       - the `file-read* file-write* file-read-metadata` block on the
@@ -145,7 +145,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 > ships **sanitized env by default** with `--env-pass=NAMES` for opt-ins. The local
 > wrapper's bare `env TMUX=…` reproduces the dangerous `--env` behaviour. Prefer
 > upstream's sanitized mode + `--env-pass` over a hand-rolled allowlist.
-> See `UPSTREAM_STANCE.md` §5.
+> See [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) §5.
 - [ ] **P4.1** In `run-sandboxed.sh`, replace the `env TMUX=...` form with an
       explicit allowlist:
       ```bash
@@ -237,7 +237,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 - [ ] **P9.2** Wash out `credential.https://github.com.helper` duplicates.
 
 ### P10 — Regression guard
-- [ ] **P10.1** Add `scripts/selftest.sh` (see `EVIDENCE.md`) and call it from
+- [ ] **P10.1** Add `scripts/selftest.sh` (see [`EVIDENCE.md`](EVIDENCE.md)) and call it from
       the launcher; **fail the launch** if any credential probe succeeds.
 - [ ] **P10.2** Record the expected results in this repo so future agents can
       diff behaviour.
@@ -247,7 +247,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/needs use
 ### P11 — Stop forking upstream; use generated policy + final-deny overlay
 
 > Rationale: the local `agent.sb`/`grants.sb` drifted into a *less* safe
-> combination than upstream defaults (P2/P3/P4, `UPSTREAM_STANCE.md` §6). Upstream
+> combination than upstream defaults (P2/P3/P4, [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) §6). Upstream
 > explicitly supports layering: "Final-deny overlays should always remain possible
 > (`--append-profile`)."
 

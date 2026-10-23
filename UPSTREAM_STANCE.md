@@ -213,7 +213,10 @@ Also relevant, `default-assumptions` on another "escape hatch":
 4. Upstream also runs `safehouse --explain` output showing effective grants —
    use it to diff against expectations.
 
-## Open question for the next agent
+## Open questions for upstream
+
+These were open questions at the time of writing; they are recorded rather than
+resolved, because they concern upstream behaviour rather than this configuration.
 
 - [ ] Was the local `agent.sb`/`grants.sb` produced by the safehouse wizard, by
       an LLM, or hand-written? If wizard-generated, check whether a newer

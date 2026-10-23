@@ -54,7 +54,7 @@ Check per-layer counts with `scripts/diagnose-keychain.sh`.
 **Rule 2: run from a REAL workdir, never `$HOME`.** A workdir of `$HOME`
 appends a whole-home read/write grant, exposing `~/.ssh`, `~/.zshrc` and the
 keychain and producing false `LEAK`s. This is the artifact behind the retracted
-finding F1 (see `FINDINGS.md` F1/F11). The script exits `2` if `$PWD` is `$HOME`.
+finding F1 (see [`FINDINGS.md`](FINDINGS.md) F1/F11). The script exits `2` if `$PWD` is `$HOME`.
 
 ```bash
 cd ~/git/pi-sandbox-hardening
@@ -128,7 +128,7 @@ security:bot            security find-generic-password -s gh:github.com -a sven1
 ```
 
 If the agent's token moves into the **agent keychain** (see
-`STEP-01b-gh-token-in-agent-keychain.md`), these become reachable **by design**,
+[`STEP-01b-gh-token-in-agent-keychain.md`](STEP-01b-gh-token-in-agent-keychain.md)), these become reachable **by design**,
 and the suite would report `LEAK` for a state we deliberately created. That is a
 harness bug, not a security result. Re-scope them:
 

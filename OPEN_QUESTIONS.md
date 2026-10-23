@@ -2,10 +2,10 @@
 
 > **Status: historical.** Written before implementation. The credential questions
 > (Q1, Q8.1, Q9) were resolved by the implementation — Q1 by **option A**
-> (dedicated agent keychain, see `STEP-03b-agent-keychain.md`), Q9 by applying the
+> (dedicated agent keychain, see [`STEP-03b-agent-keychain.md`](STEP-03b-agent-keychain.md)), Q9 by applying the
 > local changes. Still genuinely open: **Q8.2** (generate policy instead of
 > forking), **Q8.3** (`--enable=ssh` no longer needed after Step 4), and **Q8.4**
-> (upstream wizard report). See `README.md`.
+> (upstream wizard report). See [`README.md`](README.md).
 
 Answer these to unblock implementation. Each maps to a plan item.
 
@@ -56,7 +56,7 @@ Must be rotated (disclosed in plaintext in a prior session log).
 - [ ] Is an outbound host allowlist feasible, or should we rely on
       detection/alerting instead?
 
-## Q8 — Upstream alignment (new; see `UPSTREAM_STANCE.md`)
+## Q8 — Upstream alignment (new; see [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md))
 
 - [x] **Q8.1** Upgrade safehouse v0.10.1 → v0.12.0, then regenerate instead of
       hand-editing? — **upgrade done** (installed v0.12.0); the "regenerate

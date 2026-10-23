@@ -1,7 +1,7 @@
 # Step 5 — Environment sanitization (applied)
 
 **Status:** applied and verified — see "APPLIED and verified" below.
-**Closes:** `FINDINGS.md` F7 (full environment inheritance), and with it F5/ssh-agent
+**Closes:** [`FINDINGS.md`](FINDINGS.md) F7 (full environment inheritance), and with it F5/ssh-agent
 reachability via `SSH_AUTH_SOCK`.
 **Risk:** medium (touches the launcher's exec line — the same line involved in the
 earlier launcher incident).
@@ -9,7 +9,7 @@ earlier launcher incident).
 
 ## Problem
 
-`FINDINGS.md` F5: the launcher inherits the **entire** shell environment.
+[`FINDINGS.md`](FINDINGS.md) F5: the launcher inherits the **entire** shell environment.
 
 ```bash
 exec sandbox-exec -f "$tmp_policy" \

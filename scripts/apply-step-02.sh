@@ -24,8 +24,16 @@ GITCONFIG="$AGENT_DIR/gitconfig"
 SSH_WRAPPER="$AGENT_DIR/ssh/ssh-github.sh"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
-MARK_BEGIN=";; >>> pi-sandbox-hardening step-02 (managed block)"
+MARK_BEGIN=";; >>> pi-sandbox-hardening step-02 (agent identity)"
 MARK_END=";; <<< pi-sandbox-hardening step-02"
+# Legacy marker. This block was originally labelled "(managed block)" and was
+# renamed to "(agent identity)" to match the naming of the other step blocks.
+# Accept the old text too, otherwise re-running this script against an installed
+# file would append a SECOND, duplicate copy of the same grants.
+MARK_BEGIN_LEGACY=";; >>> pi-sandbox-hardening step-02 (managed block)"
+grants_has_block() {
+  grep -qF "$MARK_BEGIN" "$GRANTS" || grep -qF "$MARK_BEGIN_LEGACY" "$GRANTS"
+}
 
 DRY=0; FORCE=0
 for a in "$@"; do
@@ -139,7 +147,7 @@ fi
 
 say
 say "3. adding managed grants block to $GRANTS"
-if grep -qF "$MARK_BEGIN" "$GRANTS"; then
+if grants_has_block; then
   say "   already present, skipping"
 else
   backup "$GRANTS"
@@ -175,7 +183,7 @@ if (( DRY )); then
 fi
 
 grep -q 'GH_CONFIG_DIR' "$LAUNCHER" && say "  launcher: GH_CONFIG_DIR present" || say "  launcher: MISSING GH_CONFIG_DIR"
-grep -qF "$MARK_BEGIN" "$GRANTS" && say "  grants:   managed block present"  || say "  grants:   MISSING block"
+grants_has_block && say "  grants:   managed block present"  || say "  grants:   MISSING block"
 [[ -f "$GITCONFIG" ]] && say "  identity: $GITCONFIG present" || say "  identity: MISSING"
 
 # Functional check: a grep can pass while the launcher is broken (a '#' inside the

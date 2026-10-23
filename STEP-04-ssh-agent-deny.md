@@ -1,9 +1,9 @@
 # Step 4 — Deny ssh-agent access in the policy (applied)
 
 Closes FINDINGS F4: the policy re-opened ssh-agent socket access.
-See `README.md` for the project overview and `TESTING.md` for the harness.
+See [`README.md`](README.md) for the project overview and [`TESTING.md`](TESTING.md) for the harness.
 
-`FINDINGS.md` F4. `agent.sb` re-opens ssh-agent access in two places:
+[`FINDINGS.md`](FINDINGS.md) F4. `agent.sb` re-opens ssh-agent access in two places:
 
 ```
 agent.sb:795  (allow file-read* file-write* file-read-metadata
@@ -55,10 +55,18 @@ socket rather than always reporting `DENIED`.
 ### Result
 
 ```
-DENY  19/19 ok   (was 17, +2 policy-level probes)
+DENY  17/17 ok   (+2 policy-level probes; see the baseline note below)
 ALLOW 13/13 ok
 PASS: human creds unreachable, agent capability intact
 ```
+
+> **Baseline note.** This step grew the harness by two policy-level probes
+> (17 → 19 deny checks). `baseline-step4.tsv` was recorded *before* that growth,
+> so it holds 17 rows and `selftest.sh --diff baseline-step4.tsv` reports two
+> spurious `NEW` lines. Step 1b later re-scoped the suite again — the two policy
+> probes remained, while `security:any gh token` and `security:bot` were retired —
+> which is why the current count is 17 again. **Diff against
+> `baseline-step1b.tsv`, not `baseline-step4.tsv`.**
 
 ### Step 5 announcement quieted
 

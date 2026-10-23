@@ -7,7 +7,7 @@ Severity legend: **C**ritical / **H**igh / **M**edium / **L**ow
 
 > **Status:** these are findings about the state *before* hardening. All
 > credential-exposure findings (F2, F3, F4, F5, F7, F12) have since been
-> addressed — see `README.md` for the result and `STEP-*.md` for the
+> addressed — see [`README.md`](README.md) for the result and `STEP-*.md` for the
 > implementations. F1 is **retracted** (see F1/F11). F8 (unrestricted egress)
 > remains open by design.
 
@@ -201,7 +201,7 @@ inherits the intended policy**, and `WORK_DIR` must be set to a **realistic
 workdir** (not `$HOME`) or the dynamic workdir grant over-grants and invalidates
 results.
 
-Repeatable harness (see `EVIDENCE.md` for the full script):
+Repeatable harness (see [`EVIDENCE.md`](EVIDENCE.md) for the full script):
 
 ```bash
 # Build the effective policy exactly like the wrapper does, but with a real workdir
@@ -321,7 +321,7 @@ Also worth recording:
 keychain, the DENY probes `security:any gh token` and `security:bot` would find
 it — correctly. They must be re-scoped (`security:personal` stays DENY;
 `security:bot` becomes ALLOW) or the suite will report a `LEAK` for a state we
-deliberately created. See `STEP-01b-gh-token-in-agent-keychain.md`.
+deliberately created. See [`STEP-01b-gh-token-in-agent-keychain.md`](STEP-01b-gh-token-in-agent-keychain.md).
 
 ---
 
@@ -401,7 +401,7 @@ Corrections and updates this produced:
 
 ## Upstream status of each finding
 
-See `UPSTREAM_STANCE.md` for sources. Summary of who owns the fix:
+See [`UPSTREAM_STANCE.md`](UPSTREAM_STANCE.md) for sources. Summary of who owns the fix:
 
 | Finding | Upstream | Owner |
 |---|---|---|

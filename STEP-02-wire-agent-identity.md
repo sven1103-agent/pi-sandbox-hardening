@@ -74,7 +74,7 @@ Two lessons, both now enforced by tooling:
 > Incident note: diagnosing this, one test executed `env` with no arguments in a
 > non-sanitised shell and **printed `HF_TOKEN_STRICT` to the terminal**. The test
 > helper now always runs under `env -i`. The token must be rotated regardless
-> (see `OPEN_QUESTIONS.md` Q6).
+> (see [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) Q6).
 
 If the launcher is already broken, run `scripts/repair-launcher.sh`.
 
